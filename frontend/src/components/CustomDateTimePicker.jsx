@@ -140,6 +140,7 @@ export function CustomDateTimePicker({ value, onChange, className }) {
 
   const handleSelectDay = (day) => {
     const newDate = new Date(selectedDate);
+    newDate.setDate(1); // Previene desbordamiento si el día actual es 31 y el nuevo mes tiene menos días
     newDate.setFullYear(year);
     newDate.setMonth(month);
     newDate.setDate(day);

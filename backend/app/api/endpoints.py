@@ -31,6 +31,20 @@ def read_cliente(cliente_dni: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return cliente
 
+@router.put("/clientes/{cliente_dni}", response_model=schemas.ClienteResponse)
+def update_cliente(cliente_dni: str, cliente_update: schemas.ClienteUpdate, db: Session = Depends(get_db)):
+    db_cliente = db.query(models.Cliente).filter(models.Cliente.dni == cliente_dni).first()
+    if not db_cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    update_data = cliente_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_cliente, key, value)
+        
+    db.commit()
+    db.refresh(db_cliente)
+    return db_cliente
+
 # --- Vehiculos ---
 @router.post("/vehiculos/", response_model=schemas.VehiculoResponse)
 def create_vehiculo(vehiculo: schemas.VehiculoCreate, db: Session = Depends(get_db)):
@@ -51,6 +65,20 @@ def read_vehiculo(vehiculo_patente: str, db: Session = Depends(get_db)):
     if vehiculo is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
     return vehiculo
+
+@router.put("/vehiculos/{vehiculo_patente}", response_model=schemas.VehiculoResponse)
+def update_vehiculo(vehiculo_patente: str, vehiculo_update: schemas.VehiculoUpdate, db: Session = Depends(get_db)):
+    db_vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == vehiculo_patente).first()
+    if not db_vehiculo:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+        
+    update_data = vehiculo_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_vehiculo, key, value)
+        
+    db.commit()
+    db.refresh(db_vehiculo)
+    return db_vehiculo
 
 # --- Turnos ---
 @router.post("/turnos/", response_model=schemas.TurnoResponse)
@@ -88,7 +116,10 @@ def update_turno_estado(turno_id: int, turno_update: schemas.TurnoUpdate, db: Se
     db_turno = db.query(models.Turno).filter(models.Turno.id == turno_id).first()
     if not db_turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
-    db_turno.estado = turno_update.estado
+    if turno_update.estado is not None:
+        db_turno.estado = turno_update.estado
+    if turno_update.fecha_hora is not None:
+        db_turno.fecha_hora = turno_update.fecha_hora
     db.commit()
     db.refresh(db_turno)
     return db_turno

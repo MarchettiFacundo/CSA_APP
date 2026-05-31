@@ -3,15 +3,15 @@ import { InputWithHistory } from "../InputWithHistory";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
-export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "" }) {
+export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", initialData = null }) {
   const [formData, setFormData] = useState({
-    patente: "",
-    marca: "",
-    modelo: "",
-    anio: "",
-    color: "",
-    kilometraje: "",
-    cliente_dni: initialClienteDni,
+    patente: initialData?.patente || "",
+    marca: initialData?.marca || "",
+    modelo: initialData?.modelo || "",
+    anio: initialData?.anio || "",
+    color: initialData?.color || "",
+    kilometraje: initialData?.kilometraje || "",
+    cliente_dni: initialData?.cliente_dni || initialClienteDni,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +59,10 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "" }) {
     setError(null);
     
     try {
+      const isEdit = !!initialData;
+      const url = isEdit ? `${API_URL}/vehiculos/${initialData.patente}` : `${API_URL}/vehiculos/`;
+      const method = isEdit ? "PUT" : "POST";
+      
       const dataToSubmit = {
         ...formData,
         cliente_dni: formData.cliente_dni,
@@ -66,16 +70,16 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "" }) {
         kilometraje: formData.kilometraje ? parseInt(formData.kilometraje, 10) : null
       };
       
-      const res = await fetch(`${API_URL}/vehiculos/`, {
-        method: "POST",
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSubmit),
       });
       
-      if (!res.ok) throw new Error("Error al registrar el vehículo");
+      if (!res.ok) throw new Error(isEdit ? "Error al actualizar el vehículo" : "Error al registrar el vehículo");
       onSuccess();
     } catch (err) {
-      setError(err.message || "Error al registrar el vehículo");
+      setError(err.message || "Error al procesar la solicitud");
     } finally {
       setLoading(false);
     }
@@ -94,9 +98,10 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "" }) {
         <input 
           type="text" 
           required
+          disabled={!!initialData}
           value={formData.patente}
           onChange={e => setFormData({...formData, patente: e.target.value.toUpperCase()})}
-          className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:bg-muted"
           placeholder="AB123CD"
         />
       </div>
@@ -214,7 +219,7 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "" }) {
           disabled={loading}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Guardando..." : "Guardar Vehículo"}
+          {loading ? "Guardando..." : (initialData ? "Actualizar Vehículo" : "Guardar Vehículo")}
         </button>
       </div>
     </form>

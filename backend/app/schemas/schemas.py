@@ -18,6 +18,13 @@ class ClienteResponse(ClienteBase):
     class Config:
         from_attributes = True
 
+class ClienteUpdate(BaseModel):
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    es_agencia: Optional[bool] = None
+
 # --- Vehiculo ---
 class VehiculoBase(BaseModel):
     patente: str
@@ -35,6 +42,14 @@ class VehiculoResponse(VehiculoBase):
     class Config:
         from_attributes = True
 
+class VehiculoUpdate(BaseModel):
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    anio: Optional[int] = None
+    color: Optional[str] = None
+    kilometraje: Optional[int] = None
+    cliente_dni: Optional[str] = None
+
 
 # --- Turno ---
 class TurnoBase(BaseModel):
@@ -47,7 +62,8 @@ class TurnoCreate(TurnoBase):
     pass
 
 class TurnoUpdate(BaseModel):
-    estado: str
+    estado: Optional[str] = None
+    fecha_hora: Optional[datetime] = None
 
 class TurnoResponse(TurnoBase):
     id: int

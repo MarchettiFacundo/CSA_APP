@@ -2,14 +2,14 @@ import { useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
-export function ClienteForm({ onSuccess, onCancel }) {
+export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
   const [formData, setFormData] = useState({
-    nombre: "",
-    apellido: "",
-    dni: "",
-    telefono: "",
-    email: "",
-    es_agencia: false,
+    nombre: initialData?.nombre || "",
+    apellido: initialData?.apellido || "",
+    dni: initialData?.dni || "",
+    telefono: initialData?.telefono || "",
+    email: initialData?.email || "",
+    es_agencia: initialData?.es_agencia || false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,16 +20,20 @@ export function ClienteForm({ onSuccess, onCancel }) {
     setError(null);
     
     try {
-      const res = await fetch(`${API_URL}/clientes/`, {
-        method: "POST",
+      const isEdit = !!initialData;
+      const url = isEdit ? `${API_URL}/clientes/${initialData.dni}` : `${API_URL}/clientes/`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
       
-      if (!res.ok) throw new Error("Error al crear el cliente");
+      if (!res.ok) throw new Error(isEdit ? "Error al actualizar el cliente" : "Error al crear el cliente");
       onSuccess();
     } catch (err) {
-      setError(err.message || "Error al crear el cliente");
+      setError(err.message || "Error al procesar la solicitud");
     } finally {
       setLoading(false);
     }
@@ -74,9 +78,10 @@ export function ClienteForm({ onSuccess, onCancel }) {
           <input 
             type="text" 
             required
+            disabled={!!initialData}
             value={formData.dni}
             onChange={e => setFormData({...formData, dni: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:bg-muted"
           />
         </div>
         <div>
@@ -127,7 +132,7 @@ export function ClienteForm({ onSuccess, onCancel }) {
           disabled={loading}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Guardando..." : "Guardar Cliente"}
+          {loading ? "Guardando..." : (initialData ? "Actualizar Cliente" : "Guardar Cliente")}
         </button>
       </div>
     </form>

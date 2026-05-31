@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, CalendarDays, Clock, Car, Check, X, List, Calendar as CalendarIcon } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { TurnoForm } from "../components/forms/TurnoForm";
+import { CustomDateTimePicker } from "../components/CustomDateTimePicker";
 import { api } from "../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -17,6 +18,28 @@ export function Turnos() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayTurnos, setSelectedDayTurnos] = useState({ date: null, turnos: [] });
   const [selectedTurnoDetail, setSelectedTurnoDetail] = useState(null);
+  const [reschedulingTurno, setReschedulingTurno] = useState(null);
+  const [newFechaHora, setNewFechaHora] = useState("");
+
+  const startRescheduling = (turno) => {
+    setReschedulingTurno(turno);
+    setNewFechaHora(turno.fecha_hora);
+  };
+
+  const reprogramarTurno = async (id, nuevaFecha) => {
+    try {
+      const res = await fetch(`${API_URL}/turnos/${id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha_hora: nuevaFecha })
+      });
+      if (res.ok) {
+        fetchTurnos();
+      }
+    } catch (error) {
+      console.error("Error al reprogramar turno:", error);
+    }
+  };
 
   useEffect(() => {
     fetchTurnos();
@@ -167,6 +190,9 @@ export function Turnos() {
                       <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cumplido'); }} className="p-1.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all duration-200 hover:scale-110" title="Marcar como cumplido">
                         <Check size={16} />
                       </button>
+                      <button onClick={(e) => { e.stopPropagation(); startRescheduling(turno); }} className="p-1.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-all duration-200 hover:scale-110" title="Reprogramar turno">
+                        <CalendarDays size={16} />
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cancelado'); }} className="p-1.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 hover:scale-110" title="Cancelar turno">
                         <X size={16} />
                       </button>
@@ -298,6 +324,9 @@ export function Turnos() {
                       <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cumplido'); }} className="p-1 rounded bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors" title="Marcar como cumplido">
                         <Check size={12} />
                       </button>
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedDayTurnos({ date: null, turnos: [] }); startRescheduling(turno); }} className="p-1 rounded bg-blue-500/20 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors" title="Reprogramar turno">
+                        <CalendarDays size={12} />
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cancelado'); }} className="p-1 rounded bg-rose-500/20 text-rose-600 hover:bg-rose-500 hover:text-white transition-colors" title="Cancelar turno">
                         <X size={12} />
                       </button>
@@ -368,6 +397,7 @@ export function Turnos() {
                 {selectedTurnoDetail.estado === 'Pendiente' && (
                   <>
                     <button onClick={() => { updateEstado(selectedTurnoDetail.id, 'Cancelado'); setSelectedTurnoDetail(null); }} className="px-4 py-2 bg-rose-500/10 text-rose-600 font-bold rounded-lg hover:bg-rose-500 hover:text-white transition-colors flex items-center gap-2"><X size={18}/> Cancelar Turno</button>
+                    <button onClick={() => { startRescheduling(selectedTurnoDetail); setSelectedTurnoDetail(null); }} className="px-4 py-2 bg-blue-500/10 text-blue-600 font-bold rounded-lg hover:bg-blue-500 hover:text-white transition-colors flex items-center gap-2"><CalendarDays size={18}/> Reprogramar Turno</button>
                     <button onClick={() => { updateEstado(selectedTurnoDetail.id, 'Cumplido'); setSelectedTurnoDetail(null); }} className="px-4 py-2 bg-emerald-500/10 text-emerald-600 font-bold rounded-lg hover:bg-emerald-500 hover:text-white transition-colors flex items-center gap-2"><Check size={18}/> Marcar Cumplido</button>
                   </>
                 )}
@@ -375,6 +405,49 @@ export function Turnos() {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* Modal de Reprogramación */}
+      <Modal
+        isOpen={!!reschedulingTurno}
+        onClose={() => setReschedulingTurno(null)}
+        title="Reprogramar Turno"
+      >
+        {reschedulingTurno && (
+          <div className="space-y-4">
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Turno a reprogramar</p>
+              <h4 className="text-lg font-black text-foreground">{reschedulingTurno.motivo}</h4>
+              <p className="text-xs text-muted-foreground mt-1">Patente: <span className="font-mono text-xs font-normal ml-2 bg-background px-1.5 py-0.5 rounded border border-border">{reschedulingTurno.vehiculo_patente}</span></p>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-foreground">Selecciona Nueva Fecha y Hora</label>
+              <CustomDateTimePicker
+                value={newFechaHora}
+                onChange={e => setNewFechaHora(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-border">
+              <button 
+                onClick={() => setReschedulingTurno(null)} 
+                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors text-foreground"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  await reprogramarTurno(reschedulingTurno.id, newFechaHora);
+                  setReschedulingTurno(null);
+                }} 
+                className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 transition-colors"
+              >
+                Confirmar Reprogramación
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

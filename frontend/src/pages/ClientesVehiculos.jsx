@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock } from "lucide-react";
+import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock, Pencil } from "lucide-react";
 import { api } from "../lib/api";
 import { Modal } from "../components/Modal";
 import { ClienteForm } from "../components/forms/ClienteForm";
@@ -16,6 +16,7 @@ export function ClientesVehiculos() {
   const [modalType, setModalType] = useState(null); // 'cliente' | 'vehiculo' | null
   const [viewMode, setViewMode] = useState("clientes"); // 'clientes' | 'vehiculos'
   const [historialPatente, setHistorialPatente] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -142,6 +143,13 @@ export function ClientesVehiculos() {
                         <p className="text-sm text-muted-foreground font-medium">DNI: {cliente.dni}</p>
                       </div>
                     </div>
+                    <button 
+                      onClick={() => { setEditTarget(cliente); setModalType('cliente'); }}
+                      className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
+                      title="Editar Cliente"
+                    >
+                      <Pencil size={14} />
+                    </button>
                   </div>
 
                   <div className="space-y-2 mb-6 text-sm text-muted-foreground border-b border-border pb-4">
@@ -231,12 +239,21 @@ export function ClientesVehiculos() {
                         <p className="text-sm font-medium text-foreground/80">{vehiculo.modelo}</p>
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
-                      {vehiculo.patente}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setEditTarget(vehiculo); setModalType('vehiculo'); }}
+                        className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
+                        title="Editar Vehículo"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <span className="font-mono text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
+                        {vehiculo.patente}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-4 p-3 bg-background rounded-xl border border-border/50">
+                  <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-background rounded-xl border border-border/50">
                     <div>
                       <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Año</p>
                       <p className="font-medium text-foreground text-sm">{vehiculo.anio || '-'}</p>
@@ -244,6 +261,10 @@ export function ClientesVehiculos() {
                     <div>
                       <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Color</p>
                       <p className="font-medium text-foreground text-sm">{vehiculo.color || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Kilómetros</p>
+                      <p className="font-medium text-foreground text-sm truncate">{vehiculo.kilometraje ? `${vehiculo.kilometraje.toLocaleString()} km` : '-'}</p>
                     </div>
                   </div>
 
@@ -291,23 +312,25 @@ export function ClientesVehiculos() {
       {/* Modales */}
       <Modal 
         isOpen={modalType === 'cliente'} 
-        onClose={() => setModalType(null)} 
-        title="Nuevo Cliente / Agencia"
+        onClose={() => { setModalType(null); setEditTarget(null); }} 
+        title={editTarget ? "Editar Cliente / Agencia" : "Nuevo Cliente / Agencia"}
       >
         <ClienteForm 
+          initialData={editTarget}
           onSuccess={handleCreated} 
-          onCancel={() => setModalType(null)} 
+          onCancel={() => { setModalType(null); setEditTarget(null); }} 
         />
       </Modal>
 
       <Modal 
         isOpen={modalType === 'vehiculo'} 
-        onClose={() => setModalType(null)} 
-        title="Registrar Vehículo"
+        onClose={() => { setModalType(null); setEditTarget(null); }} 
+        title={editTarget ? "Editar Vehículo" : "Registrar Vehículo"}
       >
         <VehiculoForm 
+          initialData={editTarget}
           onSuccess={handleCreated} 
-          onCancel={() => setModalType(null)} 
+          onCancel={() => { setModalType(null); setEditTarget(null); }} 
         />
       </Modal>
 
