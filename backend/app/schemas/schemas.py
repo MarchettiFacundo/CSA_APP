@@ -55,6 +55,36 @@ class TurnoResponse(TurnoBase):
     class Config:
         from_attributes = True
 
+class ClienteEnTurno(BaseModel):
+    dni: str
+    nombre: str
+    apellido: Optional[str] = None
+    telefono: str
+    email: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class VehiculoEnTurno(BaseModel):
+    patente: str
+    marca: str
+    modelo: str
+    propietario: ClienteEnTurno
+
+    class Config:
+        from_attributes = True
+
+class TurnoDetalladoResponse(BaseModel):
+    id: int
+    fecha_hora: datetime
+    motivo: str
+    estado: str
+    vehiculo_patente: str
+    vehiculo: VehiculoEnTurno
+
+    class Config:
+        from_attributes = True
+
 # --- ServicioRealizado ---
 class ServicioRealizadoBase(BaseModel):
     servicio: str

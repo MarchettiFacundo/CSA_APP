@@ -4,6 +4,7 @@ import { api } from "../../lib/api";
 import { Search, User, Car, Plus, ArrowLeft } from "lucide-react";
 import { ClienteForm } from "./ClienteForm";
 import { VehiculoForm } from "./VehiculoForm";
+import { CustomDateTimePicker } from "../CustomDateTimePicker";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -293,12 +294,9 @@ export function TurnoForm({ onSuccess, onCancel }) {
         
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Fecha y Hora</label>
-          <input 
-            type="datetime-local" 
-            required
+          <CustomDateTimePicker 
             value={turnoData.fecha_hora}
             onChange={e => setTurnoData({...turnoData, fecha_hora: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
         

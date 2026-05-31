@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { CalendarDays, Wrench, Users, Car, ClipboardCheck, Menu, X, Sun, Moon, Bell } from "lucide-react";
+import { CalendarDays, Wrench, Users, Car, ClipboardCheck, Menu, X, Sun, Moon, Bell, MessageCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { name: "Clientes/Vehículos", icon: Users, path: "/clientes" },
   { name: "Servicios Periódicos", icon: Bell, path: "/servicios" },
   { name: "Controles Agencia", icon: ClipboardCheck, path: "/agencia" },
+  { name: "Recordatorios", icon: MessageCircle, path: "/recordatorios" },
 ];
 
 export function MainLayout() {

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
+from datetime import date, timedelta
+import datetime
 
 from app.database import get_db
 from app.models import models
@@ -62,6 +64,23 @@ def create_turno(turno: schemas.TurnoCreate, db: Session = Depends(get_db)):
 @router.get("/turnos/", response_model=List[schemas.TurnoResponse])
 def read_turnos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     turnos = db.query(models.Turno).offset(skip).limit(limit).all()
+    return turnos
+
+@router.get("/turnos/manana", response_model=List[schemas.TurnoDetalladoResponse])
+def read_turnos_manana(db: Session = Depends(get_db)):
+    tomorrow = date.today() + timedelta(days=1)
+    tomorrow_start = datetime.datetime.combine(tomorrow, datetime.time.min)
+    tomorrow_end = datetime.datetime.combine(tomorrow, datetime.time.max)
+    
+    turnos = db.query(models.Turno)\
+        .options(joinedload(models.Turno.vehiculo).joinedload(models.Vehiculo.propietario))\
+        .filter(
+            models.Turno.fecha_hora >= tomorrow_start,
+            models.Turno.fecha_hora <= tomorrow_end,
+            models.Turno.estado == "Pendiente"
+        )\
+        .order_by(models.Turno.fecha_hora.asc())\
+        .all()
     return turnos
 
 @router.patch("/turnos/{turno_id}/estado", response_model=schemas.TurnoResponse)
