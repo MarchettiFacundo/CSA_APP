@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { CalendarDays, Wrench, Users, Car, ClipboardCheck, Menu, X, Sun, Moon, Bell, MessageCircle } from "lucide-react";
+import { CalendarDays, Wrench, Users, Car, ClipboardCheck, Menu, X, Sun, Moon, Bell, MessageCircle, Lock } from "lucide-react";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
@@ -115,6 +115,20 @@ export function MainLayout() {
               <div className={cn("absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform duration-300 shadow-sm", theme === 'dark' ? 'bg-primary translate-x-4' : 'bg-background')} />
             </div>
           </button>
+
+          {/* Acceso discreto a Finanzas (Admin) */}
+          <a
+            href="/finanzas"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Panel Financiero"
+            className="flex items-center justify-center gap-2 w-full mt-2 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 transition-all duration-300 group/admin"
+          >
+            <Lock size={12} className="group-hover/admin:scale-110 transition-transform duration-300" />
+            <span className="opacity-0 group-hover/admin:opacity-100 transition-opacity duration-300">
+              Panel Financiero
+            </span>
+          </a>
         </div>
       </aside>
 

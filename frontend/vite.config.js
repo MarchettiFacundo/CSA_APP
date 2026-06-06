@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'favicon.png', 'logo.png', 'desktop-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'logo.png', 'desktop-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'finanzas-192x192.png', 'finanzas-512x512.png', 'finanzas.webmanifest'],
       manifest: {
         name: 'Centro Servicio Automotor',
         short_name: 'CSA APP',

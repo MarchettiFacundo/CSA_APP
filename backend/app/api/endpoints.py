@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+from typing import List, Optional
 from datetime import date, timedelta
+
 import datetime
 
 from app.database import get_db
@@ -225,3 +226,136 @@ def create_checklist(checklist: schemas.CheckListAgenciaCreate, db: Session = De
 def read_checklists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     checklists = db.query(models.CheckListAgencia).offset(skip).limit(limit).all()
     return checklists
+
+
+# --- Finanzas Endpoints ---
+@router.post("/finanzas/", response_model=schemas.MovimientoFinancieroResponse)
+def create_movimiento(movimiento: schemas.MovimientoFinancieroCreate, db: Session = Depends(get_db)):
+    db_movimiento = models.MovimientoFinanciero(**movimiento.model_dump())
+    db.add(db_movimiento)
+    db.commit()
+    db.refresh(db_movimiento)
+    return db_movimiento
+
+@router.get("/finanzas/", response_model=List[schemas.MovimientoFinancieroResponse])
+def read_movimientos(
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    tipo: Optional[str] = None,
+    categoria: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.MovimientoFinanciero)
+    if fecha_inicio:
+        query = query.filter(models.MovimientoFinanciero.fecha >= fecha_inicio)
+    if fecha_fin:
+        query = query.filter(models.MovimientoFinanciero.fecha <= fecha_fin)
+    if tipo:
+        query = query.filter(models.MovimientoFinanciero.tipo == tipo)
+    if categoria:
+        query = query.filter(models.MovimientoFinanciero.categoria == categoria)
+        
+    return query.order_by(models.MovimientoFinanciero.fecha.desc(), models.MovimientoFinanciero.id.desc()).offset(skip).limit(limit).all()
+
+@router.put("/finanzas/{movimiento_id}", response_model=schemas.MovimientoFinancieroResponse)
+def update_movimiento(movimiento_id: int, movimiento_update: schemas.MovimientoFinancieroUpdate, db: Session = Depends(get_db)):
+    db_mov = db.query(models.MovimientoFinanciero).filter(models.MovimientoFinanciero.id == movimiento_id).first()
+    if not db_mov:
+        raise HTTPException(status_code=404, detail="Movimiento financiero no encontrado")
+    
+    update_data = movimiento_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_mov, key, value)
+        
+    db.commit()
+    db.refresh(db_mov)
+    return db_mov
+
+@router.delete("/finanzas/{movimiento_id}")
+def delete_movimiento(movimiento_id: int, db: Session = Depends(get_db)):
+    db_mov = db.query(models.MovimientoFinanciero).filter(models.MovimientoFinanciero.id == movimiento_id).first()
+    if not db_mov:
+        raise HTTPException(status_code=404, detail="Movimiento financiero no encontrado")
+    db.delete(db_mov)
+    db.commit()
+    return {"status": "ok", "message": "Movimiento eliminado con éxito"}
+
+@router.get("/finanzas/metricas")
+def get_metricas(
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    db: Session = Depends(get_db)
+):
+    # Por defecto, si no hay rango, tomamos los últimos 30 días
+    if not fecha_inicio:
+        fecha_inicio = date.today() - timedelta(days=30)
+    if not fecha_fin:
+        fecha_fin = date.today()
+
+    # Query general en el rango
+    movimientos = db.query(models.MovimientoFinanciero).filter(
+        models.MovimientoFinanciero.fecha >= fecha_inicio,
+        models.MovimientoFinanciero.fecha <= fecha_fin
+    ).all()
+
+    total_ingresos = sum(m.monto for m in movimientos if m.tipo == "Ingreso")
+    total_gastos = sum(m.monto for m in movimientos if m.tipo == "Gasto")
+    balance = total_ingresos - total_gastos
+
+    # Distribución por categoría
+    categorias_gastos = {}
+    categorias_ingresos = {}
+    for m in movimientos:
+        if m.tipo == "Gasto":
+            categorias_gastos[m.categoria] = categorias_gastos.get(m.categoria, 0) + m.monto
+        else:
+            categorias_ingresos[m.categoria] = categorias_ingresos.get(m.categoria, 0) + m.monto
+
+    # Evolución mensual (últimos 6 meses)
+    hoy = date.today()
+    evolucion = []
+    # Generar los últimos 6 meses incluyendo el actual
+    for i in range(5, -1, -1):
+        year = hoy.year
+        month = hoy.month - i
+        if month <= 0:
+            month += 12
+            year -= 1
+        
+        inicio_mes = date(year, month, 1)
+        if month == 12:
+            fin_mes = date(year, 12, 31)
+        else:
+            fin_mes = date(year, month + 1, 1) - timedelta(days=1)
+
+        movs_mes = db.query(models.MovimientoFinanciero).filter(
+            models.MovimientoFinanciero.fecha >= inicio_mes,
+            models.MovimientoFinanciero.fecha <= fin_mes
+        ).all()
+
+        ingresos_mes = sum(m.monto for m in movs_mes if m.tipo == "Ingreso")
+        gastos_mes = sum(m.monto for m in movs_mes if m.tipo == "Gasto")
+        
+        meses_nombres = {
+            1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+            7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"
+        }
+        
+        evolucion.append({
+            "mes": f"{meses_nombres[month]} {str(year)[2:]}",
+            "ingresos": ingresos_mes,
+            "gastos": gastos_mes,
+            "balance": ingresos_mes - gastos_mes
+        })
+
+    return {
+        "total_ingresos": total_ingresos,
+        "total_gastos": total_gastos,
+        "balance": balance,
+        "categorias_gastos": [{"categoria": k, "monto": v} for k, v in categorias_gastos.items()],
+        "categorias_ingresos": [{"categoria": k, "monto": v} for k, v in categorias_ingresos.items()],
+        "evolucion_mensual": evolucion
+    }
+

@@ -190,3 +190,29 @@ class ConfiguracionServicioResponse(ConfiguracionServicioBase):
 
     class Config:
         from_attributes = True
+
+
+# --- Movimiento Financiero ---
+class MovimientoFinancieroBase(BaseModel):
+    tipo: str  # 'Ingreso' o 'Gasto'
+    monto: float
+    categoria: str
+    fecha: date
+    descripcion: Optional[str] = None
+
+class MovimientoFinancieroCreate(MovimientoFinancieroBase):
+    pass
+
+class MovimientoFinancieroUpdate(BaseModel):
+    tipo: Optional[str] = None
+    monto: Optional[float] = None
+    categoria: Optional[str] = None
+    fecha: Optional[date] = None
+    descripcion: Optional[str] = None
+
+class MovimientoFinancieroResponse(MovimientoFinancieroBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+

@@ -6,6 +6,7 @@ import { ClientesVehiculos } from "./pages/ClientesVehiculos";
 import { ServiciosPeriodicos } from "./pages/ServiciosPeriodicos";
 import { Agencia } from "./pages/Agencia";
 import { Recordatorios } from "./pages/Recordatorios";
+import { Finanzas } from "./pages/Finanzas";
 
 // Temporary placeholder pages
 const Placeholder = ({ title }) => (
@@ -29,6 +30,7 @@ function App() {
           <Route path="agencia" element={<Agencia />} />
           <Route path="recordatorios" element={<Recordatorios />} />
         </Route>
+        <Route path="finanzas" element={<Finanzas />} />
       </Routes>
     </Router>
   );

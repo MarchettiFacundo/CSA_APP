@@ -1,0 +1,25 @@
+{
+  "name": "CSA — Gastos e Ingresos",
+  "short_name": "CSA Finanzas",
+  "description": "Panel de control financiero del taller — registro de gastos, ingresos y métricas.",
+  "start_url": "/finanzas",
+  "scope": "/finanzas",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/finanzas-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/finanzas-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Date
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Date, Float
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime, timezone
@@ -99,3 +99,14 @@ class ConfiguracionServicio(Base):
     palabra_clave = Column(String, index=True, nullable=False)
     meses_vencimiento = Column(Integer, nullable=False)
     km_vencimiento = Column(Integer, nullable=False)
+
+
+class MovimientoFinanciero(Base):
+    __tablename__ = "movimientos_financieros"
+    id = Column(Integer, primary_key=True, index=True)
+    tipo = Column(String, nullable=False)  # 'Ingreso' o 'Gasto'
+    monto = Column(Float, nullable=False)
+    categoria = Column(String, nullable=False)
+    fecha = Column(Date, nullable=False)
+    descripcion = Column(Text, nullable=True)
+
