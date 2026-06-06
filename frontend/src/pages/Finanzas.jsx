@@ -17,9 +17,17 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Sun,
-  Moon
+  Moon,
+  Type
 } from "lucide-react";
 import XLSXStyle from "xlsx-js-style";
+
+const FONT_SIZES = [
+  { value: 14, title: "Pequeño" },
+  { value: 16, title: "Normal" },
+  { value: 19, title: "Grande" },
+];
+
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const LS_CATEGORIAS_KEY = "csa_categorias_finanzas";
@@ -114,6 +122,15 @@ export function Finanzas() {
   }, [theme]);
 
   const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+
+  const [fontSize, setFontSize] = useState(
+    () => parseInt(localStorage.getItem("fontSize") || "16", 10)
+  );
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${fontSize}px`;
+    localStorage.setItem("fontSize", String(fontSize));
+  }, [fontSize]);
 
   // Inyectar el manifest independiente de Finanzas para instalación como PWA separada
   useEffect(() => {
@@ -664,6 +681,30 @@ export function Finanzas() {
             >
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
+            {/* Font Size Selector */}
+            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-border bg-card shadow-sm" title="Tamaño de fuente">
+              <Type size={13} className="text-muted-foreground mr-1" />
+              {FONT_SIZES.map((fs) => (
+                <button
+                  key={fs.value}
+                  title={fs.title}
+                  onClick={() => setFontSize(fs.value)}
+                  className={[
+                    "flex items-center justify-center rounded-lg transition-all duration-200 font-bold leading-none select-none",
+                    fontSize === fs.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ].join(" ")}
+                  style={{
+                    fontSize: `${fs.value - 4}px`,
+                    width: `${fs.value + 8}px`,
+                    height: `${fs.value + 8}px`,
+                  }}
+                >
+                  A
+                </button>
+              ))}
+            </div>
             <button
               onClick={handleExportToExcel}
               disabled={transacciones.length === 0}
