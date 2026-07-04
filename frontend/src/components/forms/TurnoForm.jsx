@@ -8,18 +8,20 @@ import { CustomDateTimePicker } from "../CustomDateTimePicker";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
-export function TurnoForm({ onSuccess, onCancel }) {
-  const [step, setStep] = useState(1); // 1: Search, 2: Select Vehicle (if client selected), 3: Fill Turno Details, 'new_cliente', 'new_vehiculo'
+export function TurnoForm({ onSuccess, onCancel, initialCliente = null, initialVehiculo = null }) {
+  const [selectedCliente, setSelectedCliente] = useState(initialCliente || null);
+  const [selectedVehiculo, setSelectedVehiculo] = useState(initialVehiculo || null);
+  const [step, setStep] = useState(() => {
+    if (initialVehiculo) return 3;
+    if (initialCliente) return 2;
+    return 1;
+  }); // 1: Search, 2: Select Vehicle (if client selected), 3: Fill Turno Details, 'new_cliente', 'new_vehiculo'
   const [searchTerm, setSearchTerm] = useState("");
   
   // Data from backend
   const [clientes, setClientes] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
-
-  // Selected Data
-  const [selectedCliente, setSelectedCliente] = useState(null);
-  const [selectedVehiculo, setSelectedVehiculo] = useState(null);
 
   // Turno Form Data
   const [turnoData, setTurnoData] = useState({
@@ -39,8 +41,32 @@ export function TurnoForm({ onSuccess, onCancel }) {
           fetch(`${API_URL}/clientes/`),
           fetch(`${API_URL}/vehiculos/`)
         ]);
-        if (resC.ok) setClientes(await resC.json());
-        if (resV.ok) setVehiculos(await resV.json());
+        
+        let fetchedClientes = [];
+        let fetchedVehiculos = [];
+        
+        if (resC.ok) {
+          fetchedClientes = await resC.json();
+          setClientes(fetchedClientes);
+        }
+        if (resV.ok) {
+          fetchedVehiculos = await resV.json();
+          setVehiculos(fetchedVehiculos);
+        }
+
+        // Procesar preselecciones solo al cargar inicialmente
+        if (initialVehiculo) {
+          const owner = fetchedClientes.find(c => c.id === initialVehiculo.cliente_id);
+          if (owner) {
+            setSelectedCliente(owner);
+          }
+        } else if (initialCliente) {
+          const clientVehicles = fetchedVehiculos.filter(v => v.cliente_id === initialCliente.id);
+          if (clientVehicles.length === 1) {
+            setSelectedVehiculo(clientVehicles[0]);
+            setStep(3);
+          }
+        }
       } catch (err) {
         console.error("Search fetch error", err);
       } finally {
@@ -48,7 +74,7 @@ export function TurnoForm({ onSuccess, onCancel }) {
       }
     };
     fetchAll();
-  }, []);
+  }, [initialCliente, initialVehiculo]);
 
   const handleSearchSelectCliente = (cliente) => {
     setSelectedCliente(cliente);
@@ -66,6 +92,12 @@ export function TurnoForm({ onSuccess, onCancel }) {
     const owner = clientes.find(c => c.id === vehiculo.cliente_id);
     setSelectedCliente(owner || null);
     setStep(3);
+  };
+
+  const handleBackToSearch = () => {
+    setSelectedCliente(null);
+    setSelectedVehiculo(null);
+    setStep(1);
   };
 
   const submitTurno = async (e) => {
@@ -226,7 +258,7 @@ export function TurnoForm({ onSuccess, onCancel }) {
     const clientVehicles = vehiculos.filter(v => v.cliente_id === selectedCliente.id);
     return (
       <div className="space-y-4">
-        <button onClick={() => setStep(1)} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
+        <button onClick={handleBackToSearch} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
           <ArrowLeft size={16} className="mr-1" /> Atrás
         </button>
         
@@ -268,7 +300,7 @@ export function TurnoForm({ onSuccess, onCancel }) {
   if (step === 3) {
     return (
       <form onSubmit={submitTurno} className="space-y-4">
-        <button type="button" onClick={() => setStep(1)} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <button type="button" onClick={handleBackToSearch} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft size={16} className="mr-1" /> Cambiar Cliente/Vehículo
         </button>
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock, Pencil, Trash2 } from "lucide-react";
+import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock, Pencil, Trash2, CalendarDays } from "lucide-react";
 import { api } from "../lib/api";
 import { Modal } from "../components/Modal";
 import { ClienteForm } from "../components/forms/ClienteForm";
 import { VehiculoForm } from "../components/forms/VehiculoForm";
+import { TurnoForm } from "../components/forms/TurnoForm";
 import { VehiculoHistorial } from "../components/VehiculoHistorial";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -18,6 +19,21 @@ export function ClientesVehiculos() {
   const [historialPatente, setHistorialPatente] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'cliente'|'vehiculo', id: number|string, name: string }
+  const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false);
+  const [turnoInitialCliente, setTurnoInitialCliente] = useState(null);
+  const [turnoInitialVehiculo, setTurnoInitialVehiculo] = useState(null);
+
+  const handleOpenTurnoModal = (cliente, vehiculo) => {
+    setTurnoInitialCliente(cliente);
+    setTurnoInitialVehiculo(vehiculo);
+    setIsTurnoModalOpen(true);
+  };
+
+  const handleTurnoCreated = () => {
+    setIsTurnoModalOpen(false);
+    setTurnoInitialCliente(null);
+    setTurnoInitialVehiculo(null);
+  };
 
   useEffect(() => {
     fetchData();
@@ -159,6 +175,13 @@ export function ClientesVehiculos() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button 
+                        onClick={() => handleOpenTurnoModal(cliente, null)}
+                        className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-emerald-600 transition-all shadow-sm"
+                        title="Agendar Turno"
+                      >
+                        <CalendarDays size={14} />
+                      </button>
+                      <button 
                         onClick={() => { setEditTarget(cliente); setModalType('cliente'); }}
                         className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
                         title="Editar Cliente"
@@ -204,12 +227,21 @@ export function ClientesVehiculos() {
                                 <p className="text-xs text-muted-foreground font-medium">{vehiculo.anio} • {vehiculo.color}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-mono text-xs font-bold bg-muted px-2.5 py-1 rounded-md text-foreground border border-border">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold bg-muted px-2.5 py-1 rounded-md text-foreground border border-border mr-1">
                                 {vehiculo.patente}
                               </span>
-                              <div className="opacity-0 group-hover/veh:opacity-100 transition-opacity text-primary bg-primary/10 p-1.5 rounded-md" title="Ver Historial">
-                                <Clock size={14} />
+                              <div className="flex gap-1.5 opacity-0 group-hover/veh:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleOpenTurnoModal(null, vehiculo); }}
+                                  className="text-emerald-600 bg-emerald-500/10 p-1.5 rounded-md hover:bg-emerald-500 hover:text-white transition-all"
+                                  title="Agendar Turno"
+                                >
+                                  <CalendarDays size={14} />
+                                </button>
+                                <div className="text-primary bg-primary/10 p-1.5 rounded-md" title="Ver Historial">
+                                  <Clock size={14} />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -320,12 +352,20 @@ export function ClientesVehiculos() {
                       </div>
                     )}
                     
-                    <button 
-                      onClick={() => setHistorialPatente(vehiculo.patente)}
-                      className="w-full mt-auto flex items-center justify-center gap-2 py-2 bg-primary/10 text-primary font-bold rounded-lg hover:bg-primary hover:text-primary-foreground transition-all duration-300"
-                    >
-                      <Clock size={16} /> Ver Historial
-                    </button>
+                    <div className="flex gap-2 mt-auto w-full">
+                      <button 
+                        onClick={() => handleOpenTurnoModal(null, vehiculo)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-500/10 text-emerald-600 font-bold rounded-lg hover:bg-emerald-500 hover:text-white transition-all duration-300"
+                      >
+                        <CalendarDays size={16} /> Agendar Turno
+                      </button>
+                      <button 
+                        onClick={() => setHistorialPatente(vehiculo.patente)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary/10 text-primary font-bold rounded-lg hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                      >
+                        <Clock size={16} /> Ver Historial
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -399,6 +439,19 @@ export function ClientesVehiculos() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={isTurnoModalOpen}
+        onClose={() => { setIsTurnoModalOpen(false); setTurnoInitialCliente(null); setTurnoInitialVehiculo(null); }}
+        title="Registrar Turno Rápido"
+      >
+        <TurnoForm
+          initialCliente={turnoInitialCliente}
+          initialVehiculo={turnoInitialVehiculo}
+          onSuccess={handleTurnoCreated}
+          onCancel={() => { setIsTurnoModalOpen(false); setTurnoInitialCliente(null); setTurnoInitialVehiculo(null); }}
+        />
       </Modal>
     </div>
   );
