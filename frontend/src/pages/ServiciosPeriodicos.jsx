@@ -163,7 +163,7 @@ export function ServiciosPeriodicos() {
     ...s,
     vencimiento: getEstadoVencimiento(s),
     vehiculo: vehiculos.find(v => v.patente === s.vehiculo_patente),
-    cliente: clientes.find(c => c.dni === vehiculos.find(v => v.patente === s.vehiculo_patente)?.cliente_dni)
+    cliente: clientes.find(c => c.id === vehiculos.find(v => v.patente === s.vehiculo_patente)?.cliente_id)
   })).sort((a, b) => {
     // Sort logic: Vencidos first, then proximos, then others
     const order = { 'vencido': 1, 'proximo': 2, 'al_dia': 3, 'desconocido': 4 };
@@ -178,7 +178,7 @@ export function ServiciosPeriodicos() {
       </div>
 
       {/* TABS */}
-      <div className="flex border-b border-border">
+      <div className="tour-servicios-tabs flex border-b border-border">
         <button 
           onClick={() => setActiveTab('vencimientos')}
           className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${activeTab === 'vencimientos' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}

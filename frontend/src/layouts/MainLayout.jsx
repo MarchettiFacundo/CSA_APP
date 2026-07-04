@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { CalendarDays, Wrench, Users, ClipboardCheck, Menu, X, Sun, Moon, Bell, MessageCircle, Lock, Type } from "lucide-react";
+import { CalendarDays, Wrench, Users, ClipboardCheck, Menu, X, Sun, Moon, Bell, MessageCircle, Lock, Type, HelpCircle } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useTour } from "../context/TourContext";
+import { Tour } from "../components/Tour";
 
 const FONT_SIZES = [
   { label: "A", value: 14, title: "Pequeño" },
@@ -21,6 +23,7 @@ const NAV_ITEMS = [
 export function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const { startTour } = useTour();
 
   const [theme, setTheme] = useState(
     localStorage.getItem("theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
@@ -111,6 +114,21 @@ export function MainLayout() {
 
         {/* Theme Toggle & Font Size Section */}
         <div className="p-4 border-t border-border/50 bg-card/50 space-y-2">
+          {/* Botón de Ayuda Interactiva */}
+          <button
+            onClick={() => startTour(location.pathname)}
+            className="flex items-center justify-between w-full px-4 py-3 text-sm font-bold transition-all duration-300 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 group shadow-sm"
+            title="Iniciar recorrido de ayuda"
+          >
+            <span className="flex items-center gap-3">
+              <HelpCircle size={20} className="text-primary group-hover:scale-110 transition-transform duration-300" />
+              Guía de esta Página
+            </span>
+            <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-extrabold uppercase animate-pulse">
+              Ayuda
+            </span>
+          </button>
+
           <button
             onClick={toggleTheme}
             className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-all duration-300 rounded-xl bg-muted/30 hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-transparent hover:border-border/50 group"
@@ -184,8 +202,15 @@ export function MainLayout() {
           <div className="flex items-center justify-center flex-1">
             <img src="/logo.png" alt="CSA Logo" className="h-14 w-auto object-contain drop-shadow-md" />
           </div>
-          <div className="w-10">
-            {/* Opcional: poner un pequeño toggle de tema en mobile header */}
+          <div className="flex items-center gap-2">
+            {/* Ayuda en Móvil */}
+            <button
+              onClick={() => startTour(location.pathname)}
+              className="p-2 rounded-full text-primary hover:bg-muted/50 transition-colors"
+              title="Guía de esta Página"
+            >
+              <HelpCircle size={20} />
+            </button>
             <button onClick={toggleTheme} className="p-2 rounded-full text-muted-foreground hover:bg-muted/50 transition-colors">
               {theme === 'light' ? <Sun size={20} className="text-amber-500" /> : <Moon size={20} className="text-blue-400" />}
             </button>
@@ -199,6 +224,7 @@ export function MainLayout() {
           </div>
         </div>
       </main>
+      <Tour />
     </div>
   );
 }

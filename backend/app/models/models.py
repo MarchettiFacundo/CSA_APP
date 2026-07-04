@@ -5,31 +5,30 @@ from datetime import datetime, timezone
 
 class Cliente(Base):
     __tablename__ = "clientes"
-    dni = Column(String, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, index=True)
     apellido = Column(String, index=True, nullable=True)
-    telefono = Column(String, nullable=True)
-    email = Column(String, nullable=True)
+    telefono = Column(String, nullable=False)
     es_agencia = Column(Boolean, default=False)
 
-    vehiculos = relationship("Vehiculo", back_populates="propietario")
+    vehiculos = relationship("Vehiculo", back_populates="propietario", cascade="all, delete-orphan")
 
 
 class Vehiculo(Base):
     __tablename__ = "vehiculos"
     patente = Column(String, primary_key=True, index=True)
     marca = Column(String)
-    modelo = Column(String)
+    modelo = Column(String, nullable=True)
     anio = Column(Integer, nullable=True)
     color = Column(String, nullable=True)
     kilometraje = Column(Integer, nullable=True)
-    cliente_dni = Column(String, ForeignKey("clientes.dni"))
+    cliente_id = Column(Integer, ForeignKey("clientes.id"))
 
     propietario = relationship("Cliente", back_populates="vehiculos")
-    ordenes = relationship("OrdenTrabajo", back_populates="vehiculo")
-    turnos = relationship("Turno", back_populates="vehiculo")
-    servicios = relationship("ServicioPeriodico", back_populates="vehiculo")
-    checklists = relationship("CheckListAgencia", back_populates="vehiculo")
+    ordenes = relationship("OrdenTrabajo", back_populates="vehiculo", cascade="all, delete-orphan")
+    turnos = relationship("Turno", back_populates="vehiculo", cascade="all, delete-orphan")
+    servicios = relationship("ServicioPeriodico", back_populates="vehiculo", cascade="all, delete-orphan")
+    checklists = relationship("CheckListAgencia", back_populates="vehiculo", cascade="all, delete-orphan")
 
 
 class Turno(Base):
@@ -109,4 +108,5 @@ class MovimientoFinanciero(Base):
     categoria = Column(String, nullable=False)
     fecha = Column(Date, nullable=False)
     descripcion = Column(Text, nullable=True)
+    metodo_pago = Column(String, nullable=False, default="Efectivo")
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock, Pencil } from "lucide-react";
+import { Users, User, Car, Phone, Mail, Search, Info, Plus, ArrowRight, Clock, Pencil, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { Modal } from "../components/Modal";
 import { ClienteForm } from "../components/forms/ClienteForm";
@@ -17,6 +17,7 @@ export function ClientesVehiculos() {
   const [viewMode, setViewMode] = useState("clientes"); // 'clientes' | 'vehiculos'
   const [historialPatente, setHistorialPatente] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'cliente'|'vehiculo', id: number|string, name: string }
 
   useEffect(() => {
     fetchData();
@@ -46,13 +47,26 @@ export function ClientesVehiculos() {
     fetchData();
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === 'cliente') {
+        await api.deleteCliente(deleteTarget.id);
+      } else {
+        await api.deleteVehiculo(deleteTarget.id);
+      }
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err) {
+      alert("Error al eliminar: " + err.message);
+    }
+  };
+
   const term = searchTerm.toLowerCase();
 
   const filteredClientes = clientes.filter(c => 
     c.nombre.toLowerCase().includes(term) || 
-    (c.apellido && c.apellido.toLowerCase().includes(term)) ||
-    (c.dni && c.dni.toLowerCase().includes(term)) ||
-    (c.email && c.email.toLowerCase().includes(term))
+    (c.apellido && c.apellido.toLowerCase().includes(term))
   );
 
   const filteredVehiculos = vehiculos.filter(v =>
@@ -69,12 +83,12 @@ export function ClientesVehiculos() {
           <p className="text-muted-foreground mt-1">Gestión de Clientes y Vehículos.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+        <div className="tour-clientes-search-btn flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input 
               type="text" 
-              placeholder={viewMode === 'clientes' ? "Buscar clientes (Nombre, DNI)..." : "Buscar vehículos (Patente, Marca)..."}
+              placeholder={viewMode === 'clientes' ? "Buscar clientes (Nombre)..." : "Buscar vehículos (Patente, Marca)..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 w-full md:w-64"
@@ -98,7 +112,7 @@ export function ClientesVehiculos() {
       </div>
 
       {/* Tabs / Toggle View */}
-      <div className="flex p-1 bg-muted/50 rounded-lg w-full max-w-sm mx-auto md:mx-0 border border-border">
+      <div className="tour-clientes-tabs flex p-1 bg-muted/50 rounded-lg w-full max-w-sm mx-auto md:mx-0 border border-border">
         <button 
           onClick={() => setViewMode('clientes')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'clientes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
@@ -127,9 +141,9 @@ export function ClientesVehiculos() {
             </div>
           ) : (
             filteredClientes.map((cliente) => {
-              const clienteVehiculos = vehiculos.filter(v => v.cliente_dni === cliente.dni);
+              const clienteVehiculos = vehiculos.filter(v => v.cliente_id === cliente.id);
               return (
-                <div key={cliente.dni} className="p-6 bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow group flex flex-col h-full">
+                <div key={cliente.id} className="p-6 bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow group flex flex-col h-full">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="bg-primary/10 p-3 rounded-full text-primary group-hover:scale-110 transition-transform">
@@ -140,26 +154,31 @@ export function ClientesVehiculos() {
                           {cliente.nombre} {cliente.apellido}
                           {cliente.es_agencia && <span className="text-[10px] uppercase font-bold bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full tracking-wider">Agencia</span>}
                         </h3>
-                        <p className="text-sm text-muted-foreground font-medium">DNI: {cliente.dni}</p>
+                        {cliente.telefono && <p className="text-sm text-muted-foreground font-medium">Tel: {cliente.telefono}</p>}
                       </div>
                     </div>
-                    <button 
-                      onClick={() => { setEditTarget(cliente); setModalType('cliente'); }}
-                      className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
-                      title="Editar Cliente"
-                    >
-                      <Pencil size={14} />
-                    </button>
+                    <div className="flex gap-2 shrink-0">
+                      <button 
+                        onClick={() => { setEditTarget(cliente); setModalType('cliente'); }}
+                        className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
+                        title="Editar Cliente"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setDeleteTarget({ type: 'cliente', id: cliente.id, name: `${cliente.nombre} ${cliente.apellido || ""}` })}
+                        className="p-2 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-rose-500 transition-all shadow-sm"
+                        title="Eliminar Cliente"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 mb-6 text-sm text-muted-foreground border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <Phone size={16} />
                       <span>{cliente.telefono || 'Sin teléfono'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail size={16} />
-                      <span>{cliente.email || 'Sin email'}</span>
                     </div>
                   </div>
 
@@ -223,7 +242,7 @@ export function ClientesVehiculos() {
             </div>
           ) : (
             filteredVehiculos.map((vehiculo) => {
-              const dueño = clientes.find(c => c.dni === vehiculo.cliente_dni);
+              const dueño = clientes.find(c => c.id === vehiculo.cliente_id);
               return (
                 <div key={vehiculo.patente} className="p-5 bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow group flex flex-col h-full">
                   
@@ -239,13 +258,20 @@ export function ClientesVehiculos() {
                         <p className="text-sm font-medium text-foreground/80">{vehiculo.modelo}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button 
                         onClick={() => { setEditTarget(vehiculo); setModalType('vehiculo'); }}
                         className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all shadow-sm"
                         title="Editar Vehículo"
                       >
                         <Pencil size={12} />
+                      </button>
+                      <button 
+                        onClick={() => setDeleteTarget({ type: 'vehiculo', id: vehiculo.patente, name: `${vehiculo.marca} ${vehiculo.modelo || ""} (${vehiculo.patente})` })}
+                        className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-rose-500 transition-all shadow-sm"
+                        title="Eliminar Vehículo"
+                      >
+                        <Trash2 size={12} />
                       </button>
                       <span className="font-mono text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
                         {vehiculo.patente}
@@ -284,14 +310,13 @@ export function ClientesVehiculos() {
                             {dueño.es_agencia && <span className="text-[10px] uppercase font-bold bg-blue-500/10 text-blue-500 px-1.5 rounded-full">Agencia</span>}
                           </p>
                           <p className="text-xs text-muted-foreground font-medium flex items-center gap-3 mt-0.5">
-                            <span>DNI: {dueño.dni}</span>
                             {dueño.telefono && <span className="flex items-center gap-1"><Phone size={10}/> {dueño.telefono}</span>}
                           </p>
                         </div>
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground italic flex items-center gap-2 p-3 bg-rose-500/5 text-rose-500 rounded-lg mb-4">
-                        <Info size={14} /> Propietario no encontrado (DNI: {vehiculo.cliente_dni})
+                        <Info size={14} /> Propietario no encontrado (ID: {vehiculo.cliente_id})
                       </div>
                     )}
                     
@@ -340,6 +365,40 @@ export function ClientesVehiculos() {
         title={`Historial de ${historialPatente}`}
       >
         <VehiculoHistorial patente={historialPatente} />
+      </Modal>
+
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget?.type === 'cliente' ? "Eliminar Cliente" : "Eliminar Vehículo"}
+      >
+        {deleteTarget && (
+          <div className="space-y-4">
+            <div className="p-4 bg-rose-500/10 text-rose-600 rounded-xl border border-rose-500/20 text-sm leading-relaxed">
+              <p className="font-bold mb-1 text-rose-700">¡Advertencia de Borrado en Cascada!</p>
+              {deleteTarget.type === 'cliente' ? (
+                <p>Si eliminas al cliente <strong>{deleteTarget.name}</strong>, se eliminarán de forma permanente todos sus vehículos asociados, así como también todo su historial de órdenes de trabajo, turnos y checklists. Esta acción no se puede deshacer.</p>
+              ) : (
+                <p>Si eliminas el vehículo <strong>{deleteTarget.name}</strong>, se eliminarán permanentemente todas las órdenes de trabajo, turnos, checklists y servicios periódicos registrados para este vehículo. Esta acción no se puede deshacer.</p>
+              )}
+            </div>
+            <p className="text-sm text-foreground">¿Estás seguro de que deseas proceder con la eliminación?</p>
+            <div className="flex justify-end gap-3 pt-4 border-t border-border mt-6">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors text-foreground"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

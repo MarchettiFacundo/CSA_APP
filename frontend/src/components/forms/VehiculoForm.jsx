@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { InputWithHistory } from "../InputWithHistory";
+import { Search, User, ChevronDown } from "lucide-react";
+import { extractErrorMessage, translateError } from "../../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
-export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", initialData = null }) {
+export function VehiculoForm({ onSuccess, onCancel, initialClienteId = "", initialData = null }) {
   const [formData, setFormData] = useState({
     patente: initialData?.patente || "",
     marca: initialData?.marca || "",
@@ -11,7 +13,7 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
     anio: initialData?.anio || "",
     color: initialData?.color || "",
     kilometraje: initialData?.kilometraje || "",
-    cliente_dni: initialData?.cliente_dni || initialClienteDni,
+    cliente_id: initialData?.cliente_id || initialClienteId,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,6 +21,10 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
   const [fipeMarcas, setFipeMarcas] = useState([]);
   const [fipeModelos, setFipeModelos] = useState([]);
   const [loadingFipe, setLoadingFipe] = useState(false);
+
+  // Estados para el selector de propietario personalizado
+  const [searchPropietario, setSearchPropietario] = useState("");
+  const [propietarioDropdownOpen, setPropietarioDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API_URL}/clientes/`)
@@ -53,6 +59,18 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
     }
   }, [formData.marca, fipeMarcas]);
 
+  // Cerrar dropdown al hacer clic afuera
+  useEffect(() => {
+    if (!propietarioDropdownOpen) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest(".propietario-select-container")) {
+        setPropietarioDropdownOpen(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [propietarioDropdownOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -63,10 +81,17 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
       const url = isEdit ? `${API_URL}/vehiculos/${initialData.patente}` : `${API_URL}/vehiculos/`;
       const method = isEdit ? "PUT" : "POST";
       
+      if (!formData.cliente_id) {
+        throw new Error("Debe seleccionar un propietario para el vehículo.");
+      }
+
       const dataToSubmit = {
-        ...formData,
-        cliente_dni: formData.cliente_dni,
-        anio: parseInt(formData.anio, 10),
+        patente: formData.patente.trim().toUpperCase(),
+        marca: formData.marca.trim(),
+        modelo: formData.modelo.trim() === "" ? null : formData.modelo.trim(),
+        color: formData.color.trim() === "" ? null : formData.color.trim(),
+        cliente_id: parseInt(formData.cliente_id, 10),
+        anio: formData.anio ? parseInt(formData.anio, 10) : null,
         kilometraje: formData.kilometraje ? parseInt(formData.kilometraje, 10) : null
       };
       
@@ -76,14 +101,19 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
         body: JSON.stringify(dataToSubmit),
       });
       
-      if (!res.ok) throw new Error(isEdit ? "Error al actualizar el vehículo" : "Error al registrar el vehículo");
+      if (!res.ok) {
+        const errorMsg = await extractErrorMessage(res);
+        throw new Error(errorMsg);
+      }
       onSuccess();
     } catch (err) {
-      setError(err.message || "Error al procesar la solicitud");
+      setError(translateError(err.message || err.toString()));
     } finally {
       setLoading(false);
     }
   };
+
+  const dueñoSeleccionado = clientes.find(c => c.id === parseInt(formData.cliente_id, 10));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,12 +156,11 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
         </div>
         <div>
           <label className="flex items-center justify-between text-sm font-medium text-foreground mb-1">
-            Modelo
+            Modelo <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
             {loadingFipe && <span className="text-[10px] text-primary animate-pulse uppercase tracking-wider">Cargando...</span>}
           </label>
           <input 
             type="text" 
-            required
             list="fipe-modelos-list"
             value={formData.modelo}
             onChange={e => setFormData({...formData, modelo: e.target.value})}
@@ -148,10 +177,9 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Año</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Año <span className="text-muted-foreground font-normal text-xs">(Opcional)</span></label>
           <input 
             type="number" 
-            required
             min="1950"
             max={new Date().getFullYear() + 1}
             value={formData.anio}
@@ -160,10 +188,9 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Color</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Color <span className="text-muted-foreground font-normal text-xs">(Opcional)</span></label>
           <InputWithHistory 
             type="text" 
-            required
             historyKey="vehiculo_color"
             value={formData.color}
             onChange={e => setFormData({...formData, color: e.target.value})}
@@ -174,33 +201,84 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteDni = "", init
       </div>
       
       <div className="grid grid-cols-2 gap-4 mt-2">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">DNI del Cliente Dueño</label>
-          <input 
-            type="text" 
-            required
-            list="clientes-list"
-            value={formData.cliente_dni}
-            onChange={e => setFormData({...formData, cliente_dni: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-            placeholder="Busca por nombre o DNI"
-          />
-          <datalist id="clientes-list">
-            {clientes.map(c => (
-              <option key={c.dni} value={c.dni}>
-                {c.nombre} {c.apellido} (DNI: {c.dni})
-              </option>
-            ))}
-          </datalist>
+        <div className="propietario-select-container relative">
+          <label className="block text-sm font-medium text-foreground mb-1">Propietario / Cliente</label>
+          {dueñoSeleccionado ? (
+            <div className="flex items-center justify-between p-2 px-3 bg-muted/40 border border-border rounded-lg h-[42px]">
+              <div className="flex items-center gap-2 overflow-hidden truncate">
+                <User size={14} className="text-primary shrink-0" />
+                <span className="font-bold text-sm text-foreground truncate">
+                  {dueñoSeleccionado.nombre} {dueñoSeleccionado.apellido || ""}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setFormData({...formData, cliente_id: ""})}
+                className="text-xs text-rose-500 hover:text-rose-600 font-bold px-2 py-1 bg-rose-500/10 rounded transition-colors shrink-0"
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPropietarioDropdownOpen(!propietarioDropdownOpen)}
+                className="w-full text-left px-3 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-muted-foreground flex justify-between items-center h-[42px] hover:border-primary/50 transition-colors"
+              >
+                <span>Seleccionar Propietario...</span>
+                <ChevronDown size={16} className="text-muted-foreground" />
+              </button>
+              
+              {propietarioDropdownOpen && (
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto p-2 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+                    <input 
+                      type="text"
+                      placeholder="Buscar cliente..."
+                      value={searchPropietario}
+                      onChange={e => setSearchPropietario(e.target.value)}
+                      className="w-full pl-7 pr-3 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                    {clientes
+                      .filter(c => `${c.nombre} ${c.apellido || ""}`.toLowerCase().includes(searchPropietario.toLowerCase()))
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({...formData, cliente_id: c.id});
+                            setPropietarioDropdownOpen(false);
+                            setSearchPropietario("");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded text-xs text-foreground hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-2"
+                        >
+                          <User size={12} className="text-muted-foreground shrink-0" />
+                          <span className="truncate">{c.nombre} {c.apellido || ""}</span>
+                        </button>
+                      ))
+                    }
+                    {clientes.filter(c => `${c.nombre} ${c.apellido || ""}`.toLowerCase().includes(searchPropietario.toLowerCase())).length === 0 && (
+                      <p className="text-[10px] text-muted-foreground text-center py-2">No se encontraron clientes</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Kilometraje Inicial</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Kilometraje Inicial <span className="text-muted-foreground font-normal text-xs">(Opcional)</span></label>
           <input 
             type="number" 
             min="0"
             value={formData.kilometraje}
             onChange={e => setFormData({...formData, kilometraje: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
             placeholder="Ej: 45000"
           />
         </div>

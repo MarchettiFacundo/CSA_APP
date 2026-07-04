@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { extractErrorMessage, translateError } from "../../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -6,9 +7,7 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
   const [formData, setFormData] = useState({
     nombre: initialData?.nombre || "",
     apellido: initialData?.apellido || "",
-    dni: initialData?.dni || "",
     telefono: initialData?.telefono || "",
-    email: initialData?.email || "",
     es_agencia: initialData?.es_agencia || false,
   });
   const [loading, setLoading] = useState(false);
@@ -21,19 +20,27 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
     
     try {
       const isEdit = !!initialData;
-      const url = isEdit ? `${API_URL}/clientes/${initialData.dni}` : `${API_URL}/clientes/`;
+      const url = isEdit ? `${API_URL}/clientes/${initialData.id}` : `${API_URL}/clientes/`;
       const method = isEdit ? "PUT" : "POST";
+
+      const payload = {
+        ...formData,
+        apellido: formData.apellido.trim() === "" ? null : formData.apellido,
+      };
 
       const res = await fetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       
-      if (!res.ok) throw new Error(isEdit ? "Error al actualizar el cliente" : "Error al crear el cliente");
+      if (!res.ok) {
+        const errorMsg = await extractErrorMessage(res);
+        throw new Error(errorMsg);
+      }
       onSuccess();
     } catch (err) {
-      setError(err.message || "Error al procesar la solicitud");
+      setError(translateError(err.message || err.toString()));
     } finally {
       setLoading(false);
     }
@@ -60,10 +67,9 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Apellido</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Apellido <span className="text-muted-foreground font-normal">(Opcional)</span></label>
           <input 
             type="text" 
-            required
             value={formData.apellido}
             onChange={e => setFormData({...formData, apellido: e.target.value})}
             className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -72,36 +78,13 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">DNI</label>
-          <input 
-            type="text" 
-            required
-            disabled={!!initialData}
-            value={formData.dni}
-            onChange={e => setFormData({...formData, dni: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:bg-muted"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Teléfono</label>
-          <input 
-            type="tel" 
-            required
-            value={formData.telefono}
-            onChange={e => setFormData({...formData, telefono: e.target.value})}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-        </div>
-      </div>
-      
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1">Email <span className="text-muted-foreground font-normal">(Opcional)</span></label>
+        <label className="block text-sm font-medium text-foreground mb-1">Teléfono</label>
         <input 
-          type="email" 
-          value={formData.email}
-          onChange={e => setFormData({...formData, email: e.target.value})}
+          type="tel" 
+          required
+          value={formData.telefono}
+          onChange={e => setFormData({...formData, telefono: e.target.value})}
           className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
       </div>

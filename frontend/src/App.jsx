@@ -7,6 +7,7 @@ import { ServiciosPeriodicos } from "./pages/ServiciosPeriodicos";
 import { Agencia } from "./pages/Agencia";
 import { Recordatorios } from "./pages/Recordatorios";
 import { Finanzas } from "./pages/Finanzas";
+import { TourProvider } from "./context/TourContext";
 
 // Temporary placeholder pages
 const Placeholder = ({ title }) => (
@@ -19,19 +20,21 @@ const Placeholder = ({ title }) => (
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/turnos" replace />} />
-          <Route path="turnos" element={<Turnos />} />
-          <Route path="ordenes" element={<Ordenes />} />
-          <Route path="clientes" element={<ClientesVehiculos />} />
-          <Route path="vehiculos" element={<Navigate to="/clientes" replace />} />
-          <Route path="servicios" element={<ServiciosPeriodicos />} />
-          <Route path="agencia" element={<Agencia />} />
-          <Route path="recordatorios" element={<Recordatorios />} />
-        </Route>
-        <Route path="finanzas" element={<Finanzas />} />
-      </Routes>
+      <TourProvider>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Navigate to="/turnos" replace />} />
+            <Route path="turnos" element={<Turnos />} />
+            <Route path="ordenes" element={<Ordenes />} />
+            <Route path="clientes" element={<ClientesVehiculos />} />
+            <Route path="vehiculos" element={<Navigate to="/clientes" replace />} />
+            <Route path="servicios" element={<ServiciosPeriodicos />} />
+            <Route path="agencia" element={<Agencia />} />
+            <Route path="recordatorios" element={<Recordatorios />} />
+          </Route>
+          <Route path="finanzas" element={<Finanzas />} />
+        </Routes>
+      </TourProvider>
     </Router>
   );
 }

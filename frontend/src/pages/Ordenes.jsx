@@ -46,14 +46,14 @@ export function Ordenes() {
     if (!searchTerm) return true;
     
     const v = vehiculos.find(veh => veh.patente === orden.vehiculo_patente);
-    const c = v ? clientes.find(cli => cli.dni === v.cliente_dni) : null;
+    const c = v ? clientes.find(cli => cli.id === v.cliente_id) : null;
     
     const search = searchTerm.toLowerCase();
     const patenteMatch = orden.vehiculo_patente.toLowerCase().includes(search);
     const descMatch = orden.descripcion.toLowerCase().includes(search);
     const servMatch = orden.servicios && orden.servicios.some(s => s.servicio.toLowerCase().includes(search));
     const vehMatch = v && (`${v.marca} ${v.modelo}`.toLowerCase().includes(search));
-    const cliMatch = c && (`${c.nombre} ${c.apellido} ${c.dni}`.toLowerCase().includes(search));
+    const cliMatch = c && (`${c.nombre} ${c.apellido}`.toLowerCase().includes(search));
     
     return patenteMatch || descMatch || servMatch || vehMatch || cliMatch;
   });
@@ -73,14 +73,14 @@ export function Ordenes() {
           </div>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:opacity-90 transition-all font-medium shadow-md hover:shadow-lg active:scale-95"
+            className="tour-btn-new-orden flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:opacity-90 transition-all font-medium shadow-md hover:shadow-lg active:scale-95"
           >
             <Plus size={20} />
             Nueva Orden
           </button>
         </div>
 
-      <div className="relative">
+      <div className="tour-search-orden relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
         <input 
           type="text" 
@@ -168,7 +168,7 @@ export function Ordenes() {
         >
           {selectedOrden && (() => {
             const v = vehiculos.find(veh => veh.patente === selectedOrden.vehiculo_patente);
-            const c = v ? clientes.find(cli => cli.dni === v.cliente_dni) : null;
+            const c = v ? clientes.find(cli => cli.id === v.cliente_id) : null;
             
             return (
               <div className="space-y-6">
@@ -184,15 +184,13 @@ export function Ordenes() {
                       {v && v.color && <p className="text-sm text-muted-foreground capitalize">Color: {v.color}</p>}
                     </div>
                   </div>
-
+ 
                   <div className="grid grid-cols-1 gap-4 bg-muted/30 p-4 rounded-xl border border-border">
                     <h4 className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2"><User size={16}/> Información del Cliente</h4>
                     {c ? (
                       <div className="grid grid-cols-2 gap-2">
                         <p><span className="text-muted-foreground">Nombre:</span> <span className="font-bold">{c.nombre} {c.apellido}</span></p>
-                        <p><span className="text-muted-foreground">DNI:</span> <span className="font-bold">{c.dni}</span></p>
                         {c.telefono && <p><span className="text-muted-foreground">Teléfono:</span> <span className="font-bold">{c.telefono}</span></p>}
-                        {c.email && <p><span className="text-muted-foreground">Email:</span> <span className="font-bold">{c.email}</span></p>}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground italic">Cliente no encontrado en la base de datos.</p>
@@ -245,7 +243,7 @@ export function Ordenes() {
       {/* VISTA SOLO PARA IMPRESIÓN (FUERA DEL MODAL Y UI NORMAL) */}
       {selectedOrden && (() => {
         const v = vehiculos.find(veh => veh.patente === selectedOrden.vehiculo_patente);
-        const c = v ? clientes.find(cli => cli.dni === v.cliente_dni) : null;
+        const c = v ? clientes.find(cli => cli.id === v.cliente_id) : null;
         
         return (
           <div className="hidden print:block absolute top-0 left-0 w-full min-h-screen bg-white text-black p-8 z-[9999]" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -267,15 +265,13 @@ export function Ordenes() {
                 {v && v.color && <p className="text-gray-600 capitalize">Color: {v.color}</p>}
               </div>
             </div>
-
+ 
             <div className="mb-8">
               <h3 className="text-lg font-bold text-gray-800 border-b border-gray-300 pb-2 mb-4 uppercase tracking-wider">Información del Cliente</h3>
               {c ? (
                 <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-base">
                   <p><span className="text-gray-500 block text-xs uppercase font-bold">Nombre Completo</span> <span className="font-bold text-gray-900">{c.nombre} {c.apellido}</span></p>
-                  <p><span className="text-gray-500 block text-xs uppercase font-bold">Documento (DNI)</span> <span className="font-bold text-gray-900">{c.dni}</span></p>
                   {c.telefono && <p><span className="text-gray-500 block text-xs uppercase font-bold">Teléfono</span> <span className="font-bold text-gray-900">{c.telefono}</span></p>}
-                  {c.email && <p><span className="text-gray-500 block text-xs uppercase font-bold">Email</span> <span className="font-bold text-gray-900">{c.email}</span></p>}
                 </div>
               ) : (
                 <p className="text-gray-500 italic">Cliente no encontrado en la base de datos.</p>

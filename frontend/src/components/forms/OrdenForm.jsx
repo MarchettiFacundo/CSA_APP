@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { InputWithHistory } from "../InputWithHistory";
-import { api } from "../../lib/api";
+import { api, extractErrorMessage, translateError } from "../../lib/api";
 import { Search, User, Car, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { ClienteForm } from "./ClienteForm";
 import { VehiculoForm } from "./VehiculoForm";
@@ -55,7 +55,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
 
   const handleSearchSelectCliente = (cliente) => {
     setSelectedCliente(cliente);
-    const clientVehicles = vehiculos.filter(v => v.cliente_dni === cliente.dni);
+    const clientVehicles = vehiculos.filter(v => v.cliente_id === cliente.id);
     if (clientVehicles.length === 1) {
       setSelectedVehiculo(clientVehicles[0]);
       setStep(3);
@@ -66,7 +66,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
 
   const handleSearchSelectVehiculo = (vehiculo) => {
     setSelectedVehiculo(vehiculo);
-    const owner = clientes.find(c => c.dni === vehiculo.cliente_dni);
+    const owner = clientes.find(c => c.id === vehiculo.cliente_id);
     setSelectedCliente(owner || null);
     setStep(3);
   };
@@ -102,10 +102,13 @@ export function OrdenForm({ onSuccess, onCancel }) {
         body: JSON.stringify(dataToSubmit),
       });
       
-      if (!res.ok) throw new Error("Error al crear la orden de trabajo");
+      if (!res.ok) {
+        const errorMsg = await extractErrorMessage(res);
+        throw new Error(errorMsg);
+      }
       onSuccess();
     } catch (err) {
-      setError(err.message || "Error al crear la orden de trabajo");
+      setError(translateError(err.message || err.toString()));
     } finally {
       setLoadingSubmit(false);
     }
@@ -131,7 +134,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
           <ArrowLeft size={16} className="mr-1" /> Volver
         </button>
         <VehiculoForm 
-          initialClienteDni={selectedCliente ? selectedCliente.dni : ""}
+          initialClienteId={selectedCliente ? selectedCliente.id : ""}
           onSuccess={() => setStep(1)} 
           onCancel={() => setStep(selectedCliente ? 2 : 1)} 
         />
@@ -143,8 +146,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
     const term = searchTerm.toLowerCase();
     const filteredClientes = clientes.filter(c => 
       c.nombre.toLowerCase().includes(term) || 
-      (c.apellido && c.apellido.toLowerCase().includes(term)) ||
-      (c.dni && c.dni.toLowerCase().includes(term))
+      (c.apellido && c.apellido.toLowerCase().includes(term))
     );
     const filteredVehiculos = vehiculos.filter(v => 
       v.patente.toLowerCase().includes(term) || 
@@ -157,7 +159,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar cliente (DNI, Nombre) o patente..." 
+            placeholder="Buscar cliente (Nombre) o patente..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -178,13 +180,13 @@ export function OrdenForm({ onSuccess, onCancel }) {
                 <h4 className="text-xs font-bold text-muted-foreground uppercase mb-2 mt-2">Clientes</h4>
                 {filteredClientes.map(c => (
                   <button 
-                    key={`c-${c.dni}`} onClick={() => handleSearchSelectCliente(c)}
+                    key={`c-${c.id}`} onClick={() => handleSearchSelectCliente(c)}
                     className="w-full text-left p-3 mb-2 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex items-center gap-3"
                   >
                     <div className="bg-primary/10 p-2 rounded-full text-primary"><User size={16}/></div>
                     <div>
                       <div className="font-medium text-sm text-foreground">{c.nombre} {c.apellido}</div>
-                      <div className="text-xs text-muted-foreground">DNI: {c.dni || 'S/N'}</div>
+                      {c.telefono && <div className="text-xs text-muted-foreground">Tel: {c.telefono}</div>}
                     </div>
                   </button>
                 ))}
@@ -193,21 +195,26 @@ export function OrdenForm({ onSuccess, onCancel }) {
             {filteredVehiculos.length > 0 && (
               <div>
                 <h4 className="text-xs font-bold text-muted-foreground uppercase mb-2 mt-4">Vehículos</h4>
-                {filteredVehiculos.map(v => (
-                  <button 
-                    key={`v-${v.patente}`} onClick={() => handleSearchSelectVehiculo(v)}
-                    className="w-full text-left p-3 mb-2 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-secondary p-2 rounded-full text-secondary-foreground"><Car size={16}/></div>
-                      <div>
-                        <div className="font-medium text-sm text-foreground">{v.marca} {v.modelo}</div>
-                        <div className="text-xs text-muted-foreground">Dueño DNI: {v.cliente_dni}</div>
+                {filteredVehiculos.map(v => {
+                  const dueño = clientes.find(c => c.id === v.cliente_id);
+                  return (
+                    <button 
+                      key={`v-${v.patente}`} onClick={() => handleSearchSelectVehiculo(v)}
+                      className="w-full text-left p-3 mb-2 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="bg-secondary p-2 rounded-full text-secondary-foreground"><Car size={16}/></div>
+                        <div>
+                          <div className="font-medium text-sm text-foreground">{v.marca} {v.modelo}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Dueño: {dueño ? `${dueño.nombre} ${dueño.apellido || ""}` : `ID: ${v.cliente_id}`}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-xs font-mono font-bold bg-muted px-2 py-1 rounded">{v.patente}</span>
-                  </button>
-                ))}
+                      <span className="text-xs font-mono font-bold bg-muted px-2 py-1 rounded">{v.patente}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -226,7 +233,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
   }
 
   if (step === 2) {
-    const clientVehicles = vehiculos.filter(v => v.cliente_dni === selectedCliente.dni);
+    const clientVehicles = vehiculos.filter(v => v.cliente_id === selectedCliente.id);
     return (
       <div className="space-y-4">
         <button onClick={() => setStep(1)} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">

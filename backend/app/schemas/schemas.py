@@ -4,17 +4,17 @@ from datetime import datetime, date
 
 # --- Cliente ---
 class ClienteBase(BaseModel):
-    dni: str
     nombre: str
-    apellido: str
+    apellido: Optional[str] = None
     telefono: str
-    email: Optional[str] = None
     es_agencia: bool = False
 
 class ClienteCreate(ClienteBase):
     pass
 
 class ClienteResponse(ClienteBase):
+    id: int
+
     class Config:
         from_attributes = True
 
@@ -22,18 +22,17 @@ class ClienteUpdate(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     telefono: Optional[str] = None
-    email: Optional[str] = None
     es_agencia: Optional[bool] = None
 
 # --- Vehiculo ---
 class VehiculoBase(BaseModel):
     patente: str
     marca: str
-    modelo: str
-    anio: int
-    color: str
+    modelo: Optional[str] = None
+    anio: Optional[int] = None
+    color: Optional[str] = None
     kilometraje: Optional[int] = None
-    cliente_dni: str
+    cliente_id: int
 
 class VehiculoCreate(VehiculoBase):
     pass
@@ -48,7 +47,7 @@ class VehiculoUpdate(BaseModel):
     anio: Optional[int] = None
     color: Optional[str] = None
     kilometraje: Optional[int] = None
-    cliente_dni: Optional[str] = None
+    cliente_id: Optional[int] = None
 
 
 # --- Turno ---
@@ -72,11 +71,10 @@ class TurnoResponse(TurnoBase):
         from_attributes = True
 
 class ClienteEnTurno(BaseModel):
-    dni: str
+    id: int
     nombre: str
     apellido: Optional[str] = None
     telefono: str
-    email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -199,6 +197,7 @@ class MovimientoFinancieroBase(BaseModel):
     categoria: str
     fecha: date
     descripcion: Optional[str] = None
+    metodo_pago: str = "Efectivo"
 
 class MovimientoFinancieroCreate(MovimientoFinancieroBase):
     pass
@@ -209,6 +208,7 @@ class MovimientoFinancieroUpdate(BaseModel):
     categoria: Optional[str] = None
     fecha: Optional[date] = None
     descripcion: Optional[str] = None
+    metodo_pago: Optional[str] = None
 
 class MovimientoFinancieroResponse(MovimientoFinancieroBase):
     id: int

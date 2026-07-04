@@ -25,16 +25,16 @@ def read_clientes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     clientes = db.query(models.Cliente).offset(skip).limit(limit).all()
     return clientes
 
-@router.get("/clientes/{cliente_dni}", response_model=schemas.ClienteResponse)
-def read_cliente(cliente_dni: str, db: Session = Depends(get_db)):
-    cliente = db.query(models.Cliente).filter(models.Cliente.dni == cliente_dni).first()
+@router.get("/clientes/{cliente_id}", response_model=schemas.ClienteResponse)
+def read_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if cliente is None:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return cliente
 
-@router.put("/clientes/{cliente_dni}", response_model=schemas.ClienteResponse)
-def update_cliente(cliente_dni: str, cliente_update: schemas.ClienteUpdate, db: Session = Depends(get_db)):
-    db_cliente = db.query(models.Cliente).filter(models.Cliente.dni == cliente_dni).first()
+@router.put("/clientes/{cliente_id}", response_model=schemas.ClienteResponse)
+def update_cliente(cliente_id: int, cliente_update: schemas.ClienteUpdate, db: Session = Depends(get_db)):
+    db_cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if not db_cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     
@@ -45,6 +45,15 @@ def update_cliente(cliente_dni: str, cliente_update: schemas.ClienteUpdate, db: 
     db.commit()
     db.refresh(db_cliente)
     return db_cliente
+
+@router.delete("/clientes/{cliente_id}")
+def delete_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    db_cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not db_cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    db.delete(db_cliente)
+    db.commit()
+    return {"status": "ok", "message": "Cliente eliminado con éxito"}
 
 # --- Vehiculos ---
 @router.post("/vehiculos/", response_model=schemas.VehiculoResponse)
@@ -80,6 +89,15 @@ def update_vehiculo(vehiculo_patente: str, vehiculo_update: schemas.VehiculoUpda
     db.commit()
     db.refresh(db_vehiculo)
     return db_vehiculo
+
+@router.delete("/vehiculos/{vehiculo_patente}")
+def delete_vehiculo(vehiculo_patente: str, db: Session = Depends(get_db)):
+    db_vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == vehiculo_patente).first()
+    if not db_vehiculo:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    db.delete(db_vehiculo)
+    db.commit()
+    return {"status": "ok", "message": "Vehículo eliminado con éxito"}
 
 # --- Turnos ---
 @router.post("/turnos/", response_model=schemas.TurnoResponse)
@@ -243,6 +261,7 @@ def read_movimientos(
     fecha_fin: Optional[date] = None,
     tipo: Optional[str] = None,
     categoria: Optional[str] = None,
+    metodo_pago: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
@@ -256,6 +275,8 @@ def read_movimientos(
         query = query.filter(models.MovimientoFinanciero.tipo == tipo)
     if categoria:
         query = query.filter(models.MovimientoFinanciero.categoria == categoria)
+    if metodo_pago:
+        query = query.filter(models.MovimientoFinanciero.metodo_pago == metodo_pago)
         
     return query.order_by(models.MovimientoFinanciero.fecha.desc(), models.MovimientoFinanciero.id.desc()).offset(skip).limit(limit).all()
 

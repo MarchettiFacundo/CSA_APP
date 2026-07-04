@@ -178,6 +178,7 @@ export function Finanzas() {
   const [fechaFin, setFechaFin] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroMetodoPago, setFiltroMetodoPago] = useState("");
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -201,6 +202,7 @@ export function Finanzas() {
   const [formCategoria, setFormCategoria] = useState("");
   const [formFecha, setFormFecha] = useState(new Date().toISOString().split("T")[0]);
   const [formDescripcion, setFormDescripcion] = useState("");
+  const [formMetodoPago, setFormMetodoPago] = useState("Efectivo"); // 'Efectivo' o 'Transferencia'
 
   // Historial de categorías (localStorage)
   const [categoriasGuardadas, setCategoriasGuardadas] = useState(loadCategorias);
@@ -254,7 +256,7 @@ export function Finanzas() {
       fetchTransacciones();
       fetchMetricas();
     }
-  }, [fechaInicio, fechaFin, filtroTipo, filtroCategoria, page]);
+  }, [fechaInicio, fechaFin, filtroTipo, filtroCategoria, filtroMetodoPago, page]);
 
   // Cargar transacciones de la tabla
   const fetchTransacciones = async () => {
@@ -266,6 +268,7 @@ export function Finanzas() {
       if (fechaFin) queryParams += `&fecha_fin=${fechaFin}`;
       if (filtroTipo) queryParams += `&tipo=${filtroTipo}`;
       if (filtroCategoria) queryParams += `&categoria=${filtroCategoria}`;
+      if (filtroMetodoPago) queryParams += `&metodo_pago=${filtroMetodoPago}`;
 
       const res = await fetch(`${API_URL}/finanzas/${queryParams}`);
       if (res.ok) {
@@ -278,6 +281,7 @@ export function Finanzas() {
         if (fechaFin) countParams += `${countParams ? "&" : "?"}fecha_fin=${fechaFin}`;
         if (filtroTipo) countParams += `${countParams ? "&" : "?"}tipo=${filtroTipo}`;
         if (filtroCategoria) countParams += `${countParams ? "&" : "?"}categoria=${filtroCategoria}`;
+        if (filtroMetodoPago) countParams += `${countParams ? "&" : "?"}metodo_pago=${filtroMetodoPago}`;
         
         const resCount = await fetch(`${API_URL}/finanzas/${countParams}&limit=999999`);
         if (resCount.ok) {
@@ -323,6 +327,7 @@ export function Finanzas() {
     setFormCategoria("");
     setFormFecha(new Date().toISOString().split("T")[0]);
     setFormDescripcion("");
+    setFormMetodoPago("Efectivo");
     setIsModalOpen(true);
   };
 
@@ -334,6 +339,7 @@ export function Finanzas() {
     setFormCategoria(transaccion.categoria);
     setFormFecha(transaccion.fecha);
     setFormDescripcion(transaccion.descripcion || "");
+    setFormMetodoPago(transaccion.metodo_pago || "Efectivo");
     setIsModalOpen(true);
   };
 
@@ -350,7 +356,8 @@ export function Finanzas() {
       monto: parseFloat(formMonto),
       categoria: formCategoria,
       fecha: formFecha,
-      descripcion: formDescripcion || null
+      descripcion: formDescripcion || null,
+      metodo_pago: formMetodoPago
     };
 
     try {
@@ -448,7 +455,7 @@ export function Finanzas() {
       const styleSubHeaderBg = { fgColor: { rgb: "F8FAFC" } };
 
       // ── Construcción de filas ──────────────────────────────────────────
-      // Fila 1: Título principal (cols A–F)
+      // Fila 1: Título principal (cols A–G)
       const filaTitulo = [
         cell("REPORTE FINANCIERO — TALLER CSA", {
           font:      { bold: true, sz: 16, color: { rgb: "FFFFFF" }, name: "Calibri" },
@@ -456,6 +463,7 @@ export function Finanzas() {
           alignment: { horizontal: "center", vertical: "center", wrapText: false },
           border:    thickBorderDark,
         }),
+        cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
@@ -474,6 +482,7 @@ export function Finanzas() {
           alignment: { horizontal: "center", vertical: "center" },
           border:    thickBorderDark,
         }),
+        cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
         cell("", { fill: styleTitleBg }),
@@ -502,6 +511,7 @@ export function Finanzas() {
         cell("✦ TOTAL GASTOS",    styleResumenLabel("E11D48")),
         cell("", { fill: { fgColor: { rgb: "E11D48" } } }),
         cell("✦ BALANCE NETO",    styleResumenLabel(balanceNeto >= 0 ? "0F766E" : "9F1239")),
+        cell("", { fill: { fgColor: { rgb: "FFFFFF" } } }),
       ];
       const filaResumen2 = [
         cell("", { fill: { fgColor: { rgb: "1E293B" } } }),
@@ -510,10 +520,11 @@ export function Finanzas() {
         { v: totalGastos,   t: "n",  s: styleResumenValor("991B1B") },
         cell("", { fill: { fgColor: { rgb: "FFE4E6" } } }),
         { v: balanceNeto,   t: "n",  s: styleResumenValor(balanceNeto >= 0 ? "166534" : "991B1B") },
+        cell("", { fill: { fgColor: { rgb: "FFFFFF" } } }),
       ];
 
       // Fila 4: Espacio vacío
-      const filaVacia = Array(6).fill(cell("", { fill: { fgColor: { rgb: "FFFFFF" } } }));
+      const filaVacia = Array(7).fill(cell("", { fill: { fgColor: { rgb: "FFFFFF" } } }));
 
       // Fila 5: Encabezados de la tabla
       const headerStyle = {
@@ -527,6 +538,7 @@ export function Finanzas() {
         cell("Fecha",       headerStyle),
         cell("Tipo",        headerStyle),
         cell("Categoría",   headerStyle),
+        cell("Método",      headerStyle),
         cell("Monto ($)",   { ...headerStyle, alignment: { horizontal: "right", vertical: "center" } }),
         cell("Descripción", headerStyle),
       ];
@@ -554,6 +566,7 @@ export function Finanzas() {
             alignment: { horizontal: "center", vertical: "center" },
           }),
           cell(item.categoria, baseStyle),
+          cell(item.metodo_pago || "Efectivo", { ...baseStyle, alignment: { horizontal: "center", vertical: "center" } }),
           { v: item.monto, t: "n", s: {
             ...baseStyle,
             font:      { bold: true, sz: 10, name: "Calibri", color: { rgb: tipoColor } },
@@ -576,6 +589,7 @@ export function Finanzas() {
         cell("", totalesStyle),
         cell("", totalesStyle),
         cell(`${allTransacciones.length} movimientos`, { ...totalesStyle, alignment: { horizontal: "center", vertical: "center" } }),
+        cell("", totalesStyle),
         { v: balanceNeto, t: "n", s: {
           ...totalesStyle,
           font:      { bold: true, sz: 11, name: "Calibri", color: { rgb: balanceNeto >= 0 ? "166534" : "991B1B" } },
@@ -605,8 +619,8 @@ export function Finanzas() {
 
       // Merge de celdas para título, subtítulo y tarjetas
       ws["!merges"] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // Título
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }, // Subtítulo
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Título (A-G)
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, // Subtítulo (A-G)
         { s: { r: 2, c: 1 }, e: { r: 2, c: 2 } }, // Label Ingresos
         { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } }, // Valor Ingresos
         { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // Label Gastos
@@ -632,6 +646,7 @@ export function Finanzas() {
         { wch: 14 }, // Fecha
         { wch: 12 }, // Tipo
         { wch: 28 }, // Categoría
+        { wch: 15 }, // Método
         { wch: 18 }, // Monto
         { wch: 38 }, // Descripción
       ];
@@ -729,7 +744,7 @@ export function Finanzas() {
           <Filter size={15} className="text-primary" />
           <span>Filtros y Período</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-6">
           
           {/* Selector de Período Rápido */}
           <div className="space-y-1.5">
@@ -816,6 +831,23 @@ export function Finanzas() {
               {categoriasGuardadas.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
+            </select>
+          </div>
+
+          {/* Método de Pago */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase font-black tracking-wider text-muted-foreground/80">Método</label>
+            <select
+              value={filtroMetodoPago}
+              onChange={(e) => {
+                setFiltroMetodoPago(e.target.value);
+                setPage(1);
+              }}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all duration-200"
+            >
+              <option value="">Todos</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia">Transferencia</option>
             </select>
           </div>
 
@@ -1042,6 +1074,7 @@ export function Finanzas() {
                   <th className="py-4 px-6">Fecha</th>
                   <th className="py-4 px-6">Tipo</th>
                   <th className="py-4 px-6">Categoría</th>
+                  <th className="py-4 px-6">Método</th>
                   <th className="py-4 px-6">Descripción</th>
                   <th className="py-4 px-6 text-right">Monto</th>
                   <th className="py-4 px-6 text-center">Acciones</th>
@@ -1072,6 +1105,15 @@ export function Finanzas() {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-foreground/80 font-semibold">{t.categoria}</td>
+                      <td className="py-4 px-6">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          t.metodo_pago === "Transferencia"
+                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        }`}>
+                          {t.metodo_pago || "Efectivo"}
+                        </span>
+                      </td>
                       <td className="py-4 px-6 text-muted-foreground font-normal max-w-xs truncate" title={t.descripcion}>
                         {t.descripcion || "-"}
                       </td>
@@ -1230,6 +1272,35 @@ export function Finanzas() {
                   categorias={categoriasGuardadas}
                   placeholder="Ej: Mano de obra, Repuestos..."
                 />
+              </div>
+
+              {/* Método de Pago */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-muted-foreground uppercase tracking-wide">Método de Pago</label>
+                <div className="grid grid-cols-2 gap-3 p-1 rounded-xl bg-muted">
+                  <button
+                    type="button"
+                    onClick={() => setFormMetodoPago("Efectivo")}
+                    className={`py-2 rounded-lg text-xs font-black transition-all duration-300 ${
+                      formMetodoPago === "Efectivo"
+                        ? "bg-card text-amber-600 dark:text-amber-400 shadow-sm border border-border/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Efectivo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormMetodoPago("Transferencia")}
+                    className={`py-2 rounded-lg text-xs font-black transition-all duration-300 ${
+                      formMetodoPago === "Transferencia"
+                        ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm border border-border/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Transferencia
+                  </button>
+                </div>
               </div>
 
 
