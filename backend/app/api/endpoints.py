@@ -21,9 +21,13 @@ def create_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db)
     return db_cliente
 
 @router.get("/clientes/", response_model=List[schemas.ClienteResponse])
-def read_clientes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    clientes = db.query(models.Cliente).offset(skip).limit(limit).all()
-    return clientes
+def read_clientes(skip: int = 0, limit: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Cliente)
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 @router.get("/clientes/{cliente_id}", response_model=schemas.ClienteResponse)
 def read_cliente(cliente_id: int, db: Session = Depends(get_db)):
@@ -65,9 +69,13 @@ def create_vehiculo(vehiculo: schemas.VehiculoCreate, db: Session = Depends(get_
     return db_vehiculo
 
 @router.get("/vehiculos/", response_model=List[schemas.VehiculoResponse])
-def read_vehiculos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    vehiculos = db.query(models.Vehiculo).offset(skip).limit(limit).all()
-    return vehiculos
+def read_vehiculos(skip: int = 0, limit: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Vehiculo)
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 @router.get("/vehiculos/{vehiculo_patente}", response_model=schemas.VehiculoResponse)
 def read_vehiculo(vehiculo_patente: str, db: Session = Depends(get_db)):
@@ -109,9 +117,13 @@ def create_turno(turno: schemas.TurnoCreate, db: Session = Depends(get_db)):
     return db_turno
 
 @router.get("/turnos/", response_model=List[schemas.TurnoResponse])
-def read_turnos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    turnos = db.query(models.Turno).offset(skip).limit(limit).all()
-    return turnos
+def read_turnos(skip: int = 0, limit: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Turno)
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 @router.get("/turnos/manana", response_model=List[schemas.TurnoDetalladoResponse])
 def read_turnos_manana(db: Session = Depends(get_db)):
@@ -192,9 +204,13 @@ def create_orden(orden: schemas.OrdenTrabajoCreate, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
 @router.get("/ordenes/", response_model=List[schemas.OrdenTrabajoResponse])
-def read_ordenes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    ordenes = db.query(models.OrdenTrabajo).offset(skip).limit(limit).all()
-    return ordenes
+def read_ordenes(skip: int = 0, limit: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.OrdenTrabajo)
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 # --- Servicios Periodicos y Configuracion ---
 @router.get("/configuracion-servicios/", response_model=List[schemas.ConfiguracionServicioResponse])
@@ -241,9 +257,13 @@ def create_checklist(checklist: schemas.CheckListAgenciaCreate, db: Session = De
     return db_checklist
 
 @router.get("/checklists/", response_model=List[schemas.CheckListAgenciaResponse])
-def read_checklists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    checklists = db.query(models.CheckListAgencia).offset(skip).limit(limit).all()
-    return checklists
+def read_checklists(skip: int = 0, limit: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.CheckListAgencia)
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 
 # --- Finanzas Endpoints ---
@@ -263,7 +283,7 @@ def read_movimientos(
     categoria: Optional[str] = None,
     metodo_pago: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.MovimientoFinanciero)
@@ -278,7 +298,12 @@ def read_movimientos(
     if metodo_pago:
         query = query.filter(models.MovimientoFinanciero.metodo_pago == metodo_pago)
         
-    return query.order_by(models.MovimientoFinanciero.fecha.desc(), models.MovimientoFinanciero.id.desc()).offset(skip).limit(limit).all()
+    query = query.order_by(models.MovimientoFinanciero.fecha.desc(), models.MovimientoFinanciero.id.desc())
+    if skip:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 @router.put("/finanzas/{movimiento_id}", response_model=schemas.MovimientoFinancieroResponse)
 def update_movimiento(movimiento_id: int, movimiento_update: schemas.MovimientoFinancieroUpdate, db: Session = Depends(get_db)):
