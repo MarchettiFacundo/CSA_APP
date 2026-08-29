@@ -2,13 +2,55 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export const translateError = (message) => {
   if (!message) return "Ocurrió un error inesperado.";
+  if (typeof message !== "string") {
+    try {
+      message = JSON.stringify(message);
+    } catch {
+      return "Ocurrió un error inesperado.";
+    }
+  }
+
+  // Si el backend ya envió un mensaje amigable y claro en español, respetarlo
+  if (
+    message.startsWith("Ya existe ") ||
+    message.startsWith("No se encontró ") ||
+    message.startsWith("El cliente ") ||
+    message.startsWith("El vehículo ") ||
+    message.startsWith("La patente ") ||
+    message.startsWith("El nombre ") ||
+    message.startsWith("El teléfono ") ||
+    message.startsWith("El monto ") ||
+    message.startsWith("El tipo ") ||
+    message.startsWith("La palabra ") ||
+    message.startsWith("No se puede ") ||
+    message.startsWith("Ocurrió un problema ") ||
+    message.startsWith("Cliente ") ||
+    message.startsWith("Vehículo ")
+  ) {
+    return message;
+  }
+
   const msg = message.toLowerCase();
   
-  // Errores de red
+  // Errores de red y conexión
   if (msg.includes("failed to fetch") || msg.includes("network error") || msg.includes("load failed") || msg.includes("connection refused")) {
     return "No se pudo conectar con el servidor. Comprueba tu conexión a internet o si el backend está en funcionamiento.";
   }
   
+  // Restricciones de Base de Datos / SQL
+  if (msg.includes("unique constraint") || msg.includes("duplicate key") || msg.includes("already exists")) {
+    if (msg.includes("vehiculos.patente") || msg.includes("patente")) {
+      return "Ya existe un vehículo registrado con esta patente.";
+    }
+    if (msg.includes("configuracion_servicios")) {
+      return "Ya existe una configuración de servicio con esta palabra clave.";
+    }
+    return "Ya existe un registro con estos datos únicos en el sistema.";
+  }
+  if (msg.includes("foreign key constraint") || msg.includes("violates foreign key")) {
+    return "No se puede realizar la acción debido a dependencias con otros datos del sistema.";
+  }
+
   // Validaciones comunes de Pydantic
   if (msg.includes("field required") || msg.includes("missing")) {
     return "Falta completar algún campo obligatorio.";
@@ -27,14 +69,6 @@ export const translateError = (message) => {
   }
   if (msg.includes("value is not a valid email") || msg.includes("value_error.email")) {
     return "El correo electrónico ingresado no tiene un formato válido.";
-  }
-  
-  // Restricciones de Base de Datos / SQL
-  if (msg.includes("unique constraint") || msg.includes("duplicate key") || msg.includes("already exists")) {
-    return "Ya existe un registro con estos datos únicos en el sistema.";
-  }
-  if (msg.includes("foreign key constraint") || msg.includes("violates foreign key")) {
-    return "No se puede realizar la acción debido a dependencias con otros datos del sistema.";
   }
 
   // Errores HTTP típicos
@@ -82,15 +116,19 @@ const request = async (url, options = {}) => {
     return await res.json();
   } catch (err) {
     if (err.message && (
-      err.message.includes("No se pudo conectar") || 
-      err.message.includes("Falta completar") ||
-      err.message.includes("El valor ingresado") ||
-      err.message.includes("La fecha") ||
-      err.message.includes("Ya existe") ||
-      err.message.includes("No se puede") ||
-      err.message.includes("El recurso") ||
-      err.message.includes("No tienes") ||
-      err.message.includes("Acceso")
+      err.message.startsWith("Ya existe ") ||
+      err.message.startsWith("No se encontró ") ||
+      err.message.startsWith("El cliente ") ||
+      err.message.startsWith("El vehículo ") ||
+      err.message.startsWith("La patente ") ||
+      err.message.startsWith("No se pudo conectar") || 
+      err.message.startsWith("Falta completar") ||
+      err.message.startsWith("El valor ingresado") ||
+      err.message.startsWith("La fecha") ||
+      err.message.startsWith("No se puede") ||
+      err.message.startsWith("El recurso") ||
+      err.message.startsWith("No tienes") ||
+      err.message.startsWith("Acceso")
     )) {
       throw err;
     }
