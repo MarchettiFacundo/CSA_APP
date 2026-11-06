@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { InputWithHistory } from "../InputWithHistory";
 import { Search, User, ChevronDown } from "lucide-react";
-import { extractErrorMessage, translateError } from "../../lib/api";
+import { api, extractErrorMessage, translateError, invalidateCache } from "../../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -27,8 +27,7 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteId = "", initi
   const [propietarioDropdownOpen, setPropietarioDropdownOpen] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/clientes/`)
-      .then(res => res.json())
+    api.getClientes()
       .then(data => setClientes(data))
       .catch(err => console.error("Error cargando clientes", err));
       
@@ -105,6 +104,7 @@ export function VehiculoForm({ onSuccess, onCancel, initialClienteId = "", initi
         const errorMsg = await extractErrorMessage(res);
         throw new Error(errorMsg);
       }
+      invalidateCache('vehiculos');
       onSuccess();
     } catch (err) {
       setError(translateError(err.message || err.toString()));

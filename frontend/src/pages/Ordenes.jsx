@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Wrench, Calendar, Car, ClipboardList, Search, User, Printer } from "lucide-react";
+import { Plus, Wrench, Calendar, Car, ClipboardList, Search, User, Printer, Gauge } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { OrdenForm } from "../components/forms/OrdenForm";
 import { api } from "../lib/api";
@@ -15,21 +15,33 @@ export function Ordenes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrden, setSelectedOrden] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
 
   useEffect(() => {
-    fetchOrdenes();
-    fetch(`${API_URL}/clientes/`).then(r=>r.json()).then(setClientes).catch(e => console.error(e));
-    fetch(`${API_URL}/vehiculos/`).then(r=>r.json()).then(setVehiculos).catch(e => console.error(e));
+    let timer;
+    if (loading) {
+      timer = setTimeout(() => setIsSlowLoading(true), 2500);
+    } else {
+      setIsSlowLoading(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  const fetchOrdenes = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/ordenes/`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrdenes(data);
-      }
+      const [dataOrdenes, dataClientes, dataVehiculos] = await Promise.all([
+        api.getOrdenes(),
+        api.getClientes(),
+        api.getVehiculos()
+      ]);
+      setOrdenes(dataOrdenes);
+      setClientes(dataClientes);
+      setVehiculos(dataVehiculos);
     } catch (error) {
       console.error("Error al cargar ordenes:", error);
     } finally {
@@ -39,7 +51,7 @@ export function Ordenes() {
 
   const handleCreated = () => {
     setIsModalOpen(false);
-    fetchOrdenes();
+    fetchData();
   };
 
   const filteredOrdenes = ordenes.filter(orden => {
@@ -93,8 +105,16 @@ export function Ordenes() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {loading ? (
-          <div className="col-span-full flex justify-center p-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="col-span-full flex flex-col items-center justify-center p-16 space-y-4">
+            <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary"></div>
+            {isSlowLoading && (
+              <div className="text-center max-w-sm bg-card border border-border p-4 rounded-xl shadow-sm space-y-1 animate-pulse">
+                <p className="text-sm font-semibold text-foreground">Conectando con el servidor...</p>
+                <p className="text-xs text-muted-foreground">
+                  El servidor en la nube se está activando. Esta primera conexión puede demorar unos segundos.
+                </p>
+              </div>
+            )}
           </div>
         ) : filteredOrdenes.length === 0 ? (
           <div className="col-span-full p-12 text-center border-2 border-dashed border-border rounded-2xl bg-card/30 backdrop-blur-sm">
@@ -137,9 +157,16 @@ export function Ordenes() {
                 )}
                 
                 <div className="pt-4 border-t border-border flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Car size={14} />
-                      <span className="text-sm font-bold text-foreground ml-1 bg-muted px-2 py-0.5 rounded border border-border">{orden.vehiculo_patente}</span>
+                      <span className="text-sm font-bold text-foreground bg-muted px-2 py-0.5 rounded border border-border">{orden.vehiculo_patente}</span>
+                    </div>
+                    {orden.kilometraje != null && (
+                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded flex items-center gap-1">
+                        <Gauge size={13} /> {orden.kilometraje.toLocaleString()} km
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">Ver Detalles &rarr;</span>
                 </div>
@@ -182,6 +209,11 @@ export function Ordenes() {
                       <h3 className="text-xl font-black bg-muted px-3 py-1 rounded-lg border border-border">{selectedOrden.vehiculo_patente}</h3>
                       {v && <p className="font-bold text-foreground mt-2">{v.marca} {v.modelo}</p>}
                       {v && v.color && <p className="text-sm text-muted-foreground capitalize">Color: {v.color}</p>}
+                      {(selectedOrden.kilometraje != null || v?.kilometraje != null) && (
+                        <p className="text-sm font-bold text-primary mt-1.5 flex items-center justify-end gap-1">
+                          <Gauge size={14} /> {selectedOrden.kilometraje != null ? `${selectedOrden.kilometraje.toLocaleString()} km` : `${v.kilometraje.toLocaleString()} km (actual)`}
+                        </p>
+                      )}
                     </div>
                   </div>
  
@@ -263,6 +295,11 @@ export function Ordenes() {
                 <h2 className="text-2xl font-black text-gray-900 border-2 border-gray-800 px-4 py-2 inline-block rounded-xl m-0">{selectedOrden.vehiculo_patente}</h2>
                 {v && <p className="font-bold text-gray-800 mt-2 text-lg">{v.marca} {v.modelo}</p>}
                 {v && v.color && <p className="text-gray-600 capitalize">Color: {v.color}</p>}
+                {(selectedOrden.kilometraje != null || v?.kilometraje != null) && (
+                  <p className="text-base font-bold text-gray-900 mt-2">
+                    Kilometraje: {selectedOrden.kilometraje != null ? `${selectedOrden.kilometraje.toLocaleString()} km` : `${v.kilometraje.toLocaleString()} km`}
+                  </p>
+                )}
               </div>
             </div>
  

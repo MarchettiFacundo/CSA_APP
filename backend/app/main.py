@@ -2,14 +2,21 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from contextlib import asynccontextmanager
 from app.database import engine, Base
 from app.models import models
 from app.api import endpoints
 
-# Crear las tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicialización de tablas de forma segura durante el ciclo de vida
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Advertencia al verificar estructura de BD: {e}")
+    yield
 
-app = FastAPI(title="CSA_APP API")
+app = FastAPI(title="CSA_APP API", lifespan=lifespan)
 
 # Configurar CORS (Permitir requests desde el frontend)
 app.add_middleware(
@@ -59,5 +66,10 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
 @app.get("/")
 def read_root():
     return {"message": "Bienvenido a la API del Taller Mecánico"}
+
+@app.get("/health")
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "service": "csa-api"}
 
 app.include_router(endpoints.router, prefix="/api")

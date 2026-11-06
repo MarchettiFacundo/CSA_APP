@@ -20,6 +20,17 @@ export function Turnos() {
   const [selectedTurnoDetail, setSelectedTurnoDetail] = useState(null);
   const [reschedulingTurno, setReschedulingTurno] = useState(null);
   const [newFechaHora, setNewFechaHora] = useState("");
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      timer = setTimeout(() => setIsSlowLoading(true), 2500);
+    } else {
+      setIsSlowLoading(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const startRescheduling = (turno) => {
     setReschedulingTurno(turno);
@@ -43,20 +54,20 @@ export function Turnos() {
 
   useEffect(() => {
     fetchTurnos();
-    fetch(`${API_URL}/clientes/`).then(r=>r.json()).then(setClientes).catch(e => console.error(e));
-    fetch(`${API_URL}/vehiculos/`).then(r=>r.json()).then(setVehiculos).catch(e => console.error(e));
   }, []);
 
   const fetchTurnos = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/turnos/`);
-      if (res.ok) {
-        const data = await res.json();
-        // Sort by date ascending
-        data.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
-        setTurnos(data);
-      }
+      const [turnosData, clientesData, vehiculosData] = await Promise.all([
+        api.getTurnos(),
+        api.getClientes(),
+        api.getVehiculos()
+      ]);
+      turnosData.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+      setTurnos(turnosData);
+      setClientes(clientesData);
+      setVehiculos(vehiculosData);
     } catch (error) {
       console.error("Error al cargar turnos:", error);
     } finally {
@@ -147,8 +158,16 @@ export function Turnos() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center p-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center justify-center p-16 space-y-4">
+          <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary"></div>
+          {isSlowLoading && (
+            <div className="text-center max-w-sm bg-card border border-border p-4 rounded-xl shadow-sm space-y-1 animate-pulse">
+              <p className="text-sm font-semibold text-foreground">Conectando con el servidor...</p>
+              <p className="text-xs text-muted-foreground">
+                El servidor en la nube se está activando. Esta primera conexión puede demorar unos segundos.
+              </p>
+            </div>
+          )}
         </div>
       ) : viewMode === 'list' ? (
         <div className="space-y-4">

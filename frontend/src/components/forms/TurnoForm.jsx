@@ -37,22 +37,13 @@ export function TurnoForm({ onSuccess, onCancel, initialCliente = null, initialV
     const fetchAll = async () => {
       setLoadingSearch(true);
       try {
-        const [resC, resV] = await Promise.all([
-          fetch(`${API_URL}/clientes/`),
-          fetch(`${API_URL}/vehiculos/`)
+        const [fetchedClientes, fetchedVehiculos] = await Promise.all([
+          api.getClientes(),
+          api.getVehiculos()
         ]);
         
-        let fetchedClientes = [];
-        let fetchedVehiculos = [];
-        
-        if (resC.ok) {
-          fetchedClientes = await resC.json();
-          setClientes(fetchedClientes);
-        }
-        if (resV.ok) {
-          fetchedVehiculos = await resV.json();
-          setVehiculos(fetchedVehiculos);
-        }
+        setClientes(fetchedClientes);
+        setVehiculos(fetchedVehiculos);
 
         // Procesar preselecciones solo al cargar inicialmente
         if (initialVehiculo) {

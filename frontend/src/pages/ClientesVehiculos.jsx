@@ -22,6 +22,17 @@ export function ClientesVehiculos() {
   const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false);
   const [turnoInitialCliente, setTurnoInitialCliente] = useState(null);
   const [turnoInitialVehiculo, setTurnoInitialVehiculo] = useState(null);
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      timer = setTimeout(() => setIsSlowLoading(true), 2500);
+    } else {
+      setIsSlowLoading(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const handleOpenTurnoModal = (cliente, vehiculo) => {
     setTurnoInitialCliente(cliente);
@@ -39,18 +50,15 @@ export function ClientesVehiculos() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (force = false) => {
     setLoading(true);
     try {
       const [resClientes, resVehiculos] = await Promise.all([
-        fetch(`${API_URL}/clientes/`),
-        fetch(`${API_URL}/vehiculos/`)
+        api.getClientes(force),
+        api.getVehiculos(force)
       ]);
-      
-      if (resClientes.ok && resVehiculos.ok) {
-        setClientes(await resClientes.json());
-        setVehiculos(await resVehiculos.json());
-      }
+      setClientes(resClientes);
+      setVehiculos(resVehiculos);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -60,7 +68,7 @@ export function ClientesVehiculos() {
 
   const handleCreated = () => {
     setModalType(null);
-    fetchData();
+    fetchData(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -147,8 +155,16 @@ export function ClientesVehiculos() {
       {viewMode === 'clientes' && (
         <div className="grid gap-6 lg:grid-cols-2">
           {loading ? (
-            <div className="col-span-full flex justify-center p-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="col-span-full flex flex-col items-center justify-center p-16 space-y-4">
+              <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary"></div>
+              {isSlowLoading && (
+                <div className="text-center max-w-sm bg-card border border-border p-4 rounded-xl shadow-sm space-y-1 animate-pulse">
+                  <p className="text-sm font-semibold text-foreground">Conectando con el servidor...</p>
+                  <p className="text-xs text-muted-foreground">
+                    El servidor en la nube se está activando. Esta primera conexión puede demorar unos segundos.
+                  </p>
+                </div>
+              )}
             </div>
           ) : filteredClientes.length === 0 ? (
             <div className="col-span-full p-12 text-center border-2 border-dashed border-border rounded-2xl bg-card/30">
@@ -264,8 +280,16 @@ export function ClientesVehiculos() {
       {viewMode === 'vehiculos' && (
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {loading ? (
-            <div className="col-span-full flex justify-center p-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="col-span-full flex flex-col items-center justify-center p-16 space-y-4">
+              <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary"></div>
+              {isSlowLoading && (
+                <div className="text-center max-w-sm bg-card border border-border p-4 rounded-xl shadow-sm space-y-1 animate-pulse">
+                  <p className="text-sm font-semibold text-foreground">Conectando con el servidor...</p>
+                  <p className="text-xs text-muted-foreground">
+                    El servidor en la nube se está activando. Esta primera conexión puede demorar unos segundos.
+                  </p>
+                </div>
+              )}
             </div>
           ) : filteredVehiculos.length === 0 ? (
             <div className="col-span-full p-12 text-center border-2 border-dashed border-border rounded-2xl bg-card/30">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { InputWithHistory } from "../InputWithHistory";
-import { api, extractErrorMessage, translateError } from "../../lib/api";
+import { api, extractErrorMessage, translateError, invalidateCache } from "../../lib/api";
 import { Search, User, Car, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { ClienteForm } from "./ClienteForm";
 import { VehiculoForm } from "./VehiculoForm";
@@ -39,11 +39,11 @@ export function OrdenForm({ onSuccess, onCancel }) {
       setLoadingSearch(true);
       try {
         const [resC, resV] = await Promise.all([
-          fetch(`${API_URL}/clientes/`),
-          fetch(`${API_URL}/vehiculos/`)
+          api.getClientes(),
+          api.getVehiculos()
         ]);
-        if (resC.ok) setClientes(await resC.json());
-        if (resV.ok) setVehiculos(await resV.json());
+        setClientes(resC);
+        setVehiculos(resV);
       } catch (err) {
         console.error("Search fetch error", err);
       } finally {
@@ -57,7 +57,12 @@ export function OrdenForm({ onSuccess, onCancel }) {
     setSelectedCliente(cliente);
     const clientVehicles = vehiculos.filter(v => v.cliente_id === cliente.id);
     if (clientVehicles.length === 1) {
-      setSelectedVehiculo(clientVehicles[0]);
+      const v = clientVehicles[0];
+      setSelectedVehiculo(v);
+      setOrdenData(prev => ({
+        ...prev,
+        kilometraje: v.kilometraje ?? ""
+      }));
       setStep(3);
     } else {
       setStep(2);
@@ -68,6 +73,10 @@ export function OrdenForm({ onSuccess, onCancel }) {
     setSelectedVehiculo(vehiculo);
     const owner = clientes.find(c => c.id === vehiculo.cliente_id);
     setSelectedCliente(owner || null);
+    setOrdenData(prev => ({
+      ...prev,
+      kilometraje: vehiculo.kilometraje ?? ""
+    }));
     setStep(3);
   };
 
@@ -93,6 +102,9 @@ export function OrdenForm({ onSuccess, onCancel }) {
     try {
       const dataToSubmit = {
         ...ordenData,
+        kilometraje: (ordenData.kilometraje !== "" && ordenData.kilometraje !== null && ordenData.kilometraje !== undefined)
+          ? parseInt(ordenData.kilometraje, 10)
+          : null,
         vehiculo_patente: selectedVehiculo.patente
       };
       
@@ -106,6 +118,7 @@ export function OrdenForm({ onSuccess, onCancel }) {
         const errorMsg = await extractErrorMessage(res);
         throw new Error(errorMsg);
       }
+      invalidateCache('vehiculos');
       onSuccess();
     } catch (err) {
       setError(translateError(err.message || err.toString()));
@@ -277,13 +290,23 @@ export function OrdenForm({ onSuccess, onCancel }) {
 
         {error && <div className="p-3 text-sm bg-rose-500/10 text-rose-600 rounded-lg">{error}</div>}
         
-        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 flex items-start gap-3">
-          <div className="mt-1 text-primary"><Car size={20}/></div>
-          <div>
-            <p className="text-xs text-muted-foreground">Vehículo Seleccionado</p>
-            <p className="font-bold text-sm text-foreground">{selectedVehiculo?.marca} {selectedVehiculo?.modelo} <span className="font-mono text-xs font-normal ml-2 bg-background px-1 rounded border border-border">{selectedVehiculo?.patente}</span></p>
-            {selectedCliente && <p className="text-xs text-muted-foreground mt-0.5">Cliente: {selectedCliente.nombre} {selectedCliente.apellido}</p>}
+        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="mt-1 text-primary"><Car size={20}/></div>
+            <div>
+              <p className="text-xs text-muted-foreground">Vehículo Seleccionado</p>
+              <p className="font-bold text-sm text-foreground">{selectedVehiculo?.marca} {selectedVehiculo?.modelo} <span className="font-mono text-xs font-normal ml-2 bg-background px-1 rounded border border-border">{selectedVehiculo?.patente}</span></p>
+              {selectedCliente && <p className="text-xs text-muted-foreground mt-0.5">Cliente: {selectedCliente.nombre} {selectedCliente.apellido}</p>}
+            </div>
           </div>
+          {selectedVehiculo?.kilometraje != null && (
+            <div className="text-right">
+              <span className="text-xs text-muted-foreground block">Km registrado</span>
+              <span className="text-xs font-bold font-mono bg-background px-2 py-0.5 rounded border border-border inline-block mt-0.5">
+                {selectedVehiculo.kilometraje.toLocaleString()} km
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -299,16 +322,19 @@ export function OrdenForm({ onSuccess, onCancel }) {
                 placeholder="Falla al arrancar en frío..."
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Kilometraje Actual</label>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-sm font-medium text-foreground mb-1">Kilometraje del Vehículo</label>
               <input 
                 type="number"
                 min="0"
                 value={ordenData.kilometraje}
-                onChange={e => setOrdenData({...ordenData, kilometraje: e.target.value ? parseInt(e.target.value) : ""})}
+                onChange={e => setOrdenData({...ordenData, kilometraje: e.target.value})}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Ej: 54000"
+                placeholder={selectedVehiculo?.kilometraje != null ? `Actual: ${selectedVehiculo.kilometraje}` : "Ej: 54000"}
               />
+              <span className="text-[11px] text-muted-foreground mt-1 block">
+                Actualizará el odómetro del vehículo en el sistema.
+              </span>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, Wrench, Clock, Check, X } from "lucide-react";
+import { CalendarDays, Wrench, Clock, Check, X, Gauge } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -60,9 +60,16 @@ export function VehiculoHistorial({ patente }) {
               <div key={o.id} className="p-4 rounded-xl border border-border bg-card shadow-sm">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-bold text-muted-foreground">#{o.id}</span>
-                  <span className="text-xs font-medium bg-secondary/50 px-2 py-1 rounded text-secondary-foreground flex items-center gap-1">
-                    <Clock size={12}/> {new Date(o.fecha_ingreso).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {o.kilometraje != null && (
+                      <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded flex items-center gap-1">
+                        <Gauge size={12}/> {o.kilometraje.toLocaleString()} km
+                      </span>
+                    )}
+                    <span className="text-xs font-medium bg-secondary/50 px-2 py-1 rounded text-secondary-foreground flex items-center gap-1">
+                      <Clock size={12}/> {new Date(o.fecha_ingreso).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-sm font-bold text-foreground mb-2">{o.descripcion}</p>
                 {o.servicios && o.servicios.length > 0 && (

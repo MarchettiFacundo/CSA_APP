@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { extractErrorMessage, translateError } from "../../lib/api";
+import { extractErrorMessage, translateError, invalidateCache } from "../../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -38,6 +38,7 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
         const errorMsg = await extractErrorMessage(res);
         throw new Error(errorMsg);
       }
+      invalidateCache('clientes');
       onSuccess();
     } catch (err) {
       setError(translateError(err.message || err.toString()));

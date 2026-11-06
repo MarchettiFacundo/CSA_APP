@@ -27,16 +27,16 @@ export function ServiciosPeriodicos() {
     setLoading(true);
     try {
       const [resServicios, resConfig, resVehiculos, resClientes] = await Promise.all([
-        fetch(`${API_URL}/servicios-periodicos/`),
-        fetch(`${API_URL}/configuracion-servicios/`),
-        fetch(`${API_URL}/vehiculos/`),
-        fetch(`${API_URL}/clientes/`)
+        api.getServiciosPeriodicos(),
+        api.getConfiguracionServicios(),
+        api.getVehiculos(),
+        api.getClientes()
       ]);
 
-      if (resServicios.ok) setServicios(await resServicios.json());
-      if (resConfig.ok) setConfiguraciones(await resConfig.json());
-      if (resVehiculos.ok) setVehiculos(await resVehiculos.json());
-      if (resClientes.ok) setClientes(await resClientes.json());
+      setServicios(resServicios);
+      setConfiguraciones(resConfig);
+      setVehiculos(resVehiculos);
+      setClientes(resClientes);
     } catch (err) {
       console.error("Error fetching data", err);
     } finally {

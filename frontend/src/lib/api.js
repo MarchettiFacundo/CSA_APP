@@ -136,7 +136,28 @@ const request = async (url, options = {}) => {
   }
 };
 
+// Caché en memoria para evitar peticiones repetitivas a la base de datos
+const cache = {
+  clientes: { data: null, timestamp: 0 },
+  vehiculos: { data: null, timestamp: 0 }
+};
+
+const CACHE_TTL = 60 * 1000; // 60 segundos de vigencia
+
+export const invalidateCache = (key) => {
+  if (key && cache[key]) {
+    cache[key] = { data: null, timestamp: 0 };
+  } else {
+    cache.clientes = { data: null, timestamp: 0 };
+    cache.vehiculos = { data: null, timestamp: 0 };
+  }
+};
+
 export const api = {
+  // Health check / Keep-Alive
+  checkHealth: () => request(`${API_URL}/health`),
+
+  // Turnos
   getTurnos: () => request(`${API_URL}/turnos/`),
   createTurno: (data) => request(`${API_URL}/turnos/`, {
     method: "POST",
@@ -144,15 +165,49 @@ export const api = {
     body: JSON.stringify(data),
   }),
   
-  // Vehiculos
-  getVehiculos: () => request(`${API_URL}/vehiculos/`),
-  deleteVehiculo: (patente) => request(`${API_URL}/vehiculos/${patente}`, {
-    method: "DELETE"
-  }),
+  // Vehiculos (con caché)
+  getVehiculos: async (forceRefresh = false) => {
+    const now = Date.now();
+    if (!forceRefresh && cache.vehiculos.data && (now - cache.vehiculos.timestamp < CACHE_TTL)) {
+      return cache.vehiculos.data;
+    }
+    const data = await request(`${API_URL}/vehiculos/`);
+    cache.vehiculos = { data, timestamp: now };
+    return data;
+  },
+  deleteVehiculo: async (patente) => {
+    const res = await request(`${API_URL}/vehiculos/${patente}`, {
+      method: "DELETE"
+    });
+    invalidateCache('vehiculos');
+    return res;
+  },
   
-  // Clientes
-  getClientes: () => request(`${API_URL}/clientes/`),
-  deleteCliente: (id) => request(`${API_URL}/clientes/${id}`, {
-    method: "DELETE"
-  })
+  // Clientes (con caché)
+  getClientes: async (forceRefresh = false) => {
+    const now = Date.now();
+    if (!forceRefresh && cache.clientes.data && (now - cache.clientes.timestamp < CACHE_TTL)) {
+      return cache.clientes.data;
+    }
+    const data = await request(`${API_URL}/clientes/`);
+    cache.clientes = { data, timestamp: now };
+    return data;
+  },
+  deleteCliente: async (id) => {
+    const res = await request(`${API_URL}/clientes/${id}`, {
+      method: "DELETE"
+    });
+    invalidateCache('clientes');
+    return res;
+  },
+
+  // Órdenes
+  getOrdenes: () => request(`${API_URL}/ordenes/`),
+  
+  // Servicios Periódicos
+  getServiciosPeriodicos: () => request(`${API_URL}/servicios-periodicos/`),
+  getConfiguracionServicios: () => request(`${API_URL}/configuracion-servicios/`),
+
+  // Invalidación manual
+  invalidateCache
 };

@@ -161,16 +161,22 @@ def create_orden(orden: schemas.OrdenTrabajoCreate, db: Session = Depends(get_db
     try:
         orden_data = orden.model_dump(exclude={"servicios"})
         db_orden = models.OrdenTrabajo(**orden_data)
-        db.add(db_orden)
         
-        # Actualizar kilometraje del vehículo
-        if orden.kilometraje:
-            vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == orden.vehiculo_patente).first()
+        vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == orden.vehiculo_patente).first()
+        
+        # Si se especificó kilometraje en la orden, actualizar el odómetro del vehículo
+        if orden.kilometraje is not None:
             if vehiculo:
                 vehiculo.kilometraje = orden.kilometraje
-                
+        elif vehiculo and vehiculo.kilometraje is not None:
+            # Si no se envió kilometraje en la orden pero el vehículo ya tiene uno registrado, heredar a la orden
+            db_orden.kilometraje = vehiculo.kilometraje
+            
+        db.add(db_orden)
         db.commit()
         db.refresh(db_orden)
+        
+        km_referencia = db_orden.kilometraje
         
         if orden.servicios:
             configuraciones = db.query(models.ConfiguracionServicio).all()
@@ -187,9 +193,9 @@ def create_orden(orden: schemas.OrdenTrabajoCreate, db: Session = Depends(get_db
                         # Auto-generar
                         nuevo_periodico = models.ServicioPeriodico(
                             tipo_servicio=conf.palabra_clave.capitalize(),
-                            kilometraje_actual=orden.kilometraje,
+                            kilometraje_actual=km_referencia,
                             fecha_proximo=(db_orden.fecha_ingreso + timedelta(days=conf.meses_vencimiento * 30)).date() if db_orden.fecha_ingreso else None,
-                            kilometraje_proximo=orden.kilometraje + conf.km_vencimiento if orden.kilometraje else None,
+                            kilometraje_proximo=km_referencia + conf.km_vencimiento if km_referencia else None,
                             estado="Pendiente",
                             vehiculo_patente=orden.vehiculo_patente
                         )

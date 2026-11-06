@@ -22,7 +22,7 @@ class Vehiculo(Base):
     anio = Column(Integer, nullable=True)
     color = Column(String, nullable=True)
     kilometraje = Column(Integer, nullable=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"))
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), index=True)
 
     propietario = relationship("Cliente", back_populates="vehiculos")
     ordenes = relationship("OrdenTrabajo", back_populates="vehiculo", cascade="all, delete-orphan")
@@ -34,10 +34,10 @@ class Vehiculo(Base):
 class Turno(Base):
     __tablename__ = "turnos"
     id = Column(Integer, primary_key=True, index=True)
-    fecha_hora = Column(DateTime)
+    fecha_hora = Column(DateTime, index=True)
     motivo = Column(String)
-    estado = Column(String, default="Pendiente") # Pendiente, Confirmado, Cancelado
-    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"))
+    estado = Column(String, default="Pendiente", index=True) # Pendiente, Confirmado, Cancelado
+    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"), index=True)
     
     vehiculo = relationship("Vehiculo", back_populates="turnos")
 
@@ -45,12 +45,12 @@ class Turno(Base):
 class OrdenTrabajo(Base):
     __tablename__ = "ordenes_trabajo"
     id = Column(Integer, primary_key=True, index=True)
-    fecha_ingreso = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    fecha_ingreso = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     descripcion = Column(Text)
     tareas_realizadas = Column(Text, nullable=True)
     repuestos = Column(Text, nullable=True)
     kilometraje = Column(Integer, nullable=True)
-    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"))
+    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"), index=True)
 
     vehiculo = relationship("Vehiculo", back_populates="ordenes")
     servicios = relationship("ServicioRealizado", back_populates="orden", cascade="all, delete-orphan")
@@ -58,7 +58,7 @@ class OrdenTrabajo(Base):
 class ServicioRealizado(Base):
     __tablename__ = "servicios_realizados"
     id = Column(Integer, primary_key=True, index=True)
-    orden_id = Column(Integer, ForeignKey("ordenes_trabajo.id"))
+    orden_id = Column(Integer, ForeignKey("ordenes_trabajo.id"), index=True)
     servicio = Column(String, index=True)
     observaciones = Column(Text, nullable=True)
     repuestos = Column(Text, nullable=True)
@@ -73,8 +73,8 @@ class ServicioPeriodico(Base):
     kilometraje_actual = Column(Integer, nullable=True)
     fecha_proximo = Column(Date, nullable=True)
     kilometraje_proximo = Column(Integer, nullable=True)
-    estado = Column(String, default="Pendiente") # Pendiente, Recordado, Desestimado, Realizado
-    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"))
+    estado = Column(String, default="Pendiente", index=True) # Pendiente, Recordado, Desestimado, Realizado
+    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"), index=True)
 
     vehiculo = relationship("Vehiculo", back_populates="servicios")
 
@@ -82,13 +82,13 @@ class ServicioPeriodico(Base):
 class CheckListAgencia(Base):
     __tablename__ = "checklists_agencias"
     id = Column(Integer, primary_key=True, index=True)
-    fecha = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    fecha = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     motor_ok = Column(Boolean, default=False)
     chapa_ok = Column(Boolean, default=False)
     pintura_ok = Column(Boolean, default=False)
     interiores_ok = Column(Boolean, default=False)
     observaciones = Column(Text, nullable=True)
-    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"))
+    vehiculo_patente = Column(String, ForeignKey("vehiculos.patente"), index=True)
 
     vehiculo = relationship("Vehiculo", back_populates="checklists")
 
@@ -103,10 +103,10 @@ class ConfiguracionServicio(Base):
 class MovimientoFinanciero(Base):
     __tablename__ = "movimientos_financieros"
     id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(String, nullable=False)  # 'Ingreso' o 'Gasto'
+    tipo = Column(String, nullable=False, index=True)  # 'Ingreso' o 'Gasto'
     monto = Column(Float, nullable=False)
-    categoria = Column(String, nullable=False)
-    fecha = Column(Date, nullable=False)
+    categoria = Column(String, nullable=False, index=True)
+    fecha = Column(Date, nullable=False, index=True)
     descripcion = Column(Text, nullable=True)
     metodo_pago = Column(String, nullable=False, default="Efectivo")
 
