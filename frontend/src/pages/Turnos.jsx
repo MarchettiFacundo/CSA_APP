@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { Plus, CalendarDays, Clock, Car, Check, X, List, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, CalendarDays, Clock, Car, Check, X, List, Calendar as CalendarIcon, MessageCircle, ExternalLink, EyeOff, Undo2, User, RefreshCw } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { TurnoForm } from "../components/forms/TurnoForm";
 import { CustomDateTimePicker } from "../components/CustomDateTimePicker";
 import { api } from "../lib/api";
+import { buildWhatsAppLink, generateTurnoConfirmationMessage, generateTurnoReminderMessage } from "../lib/utils";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+const getTodayKey = () => {
+  const today = new Date();
+  return `csa_reminders_processed_${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+};
 
 export function Turnos() {
   const [turnos, setTurnos] = useState([]);
@@ -13,7 +19,7 @@ export function Turnos() {
   const [vehiculos, setVehiculos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'recordatorios'
   const [listFilter, setListFilter] = useState('Pendientes'); // 'Pendientes' | 'Todos'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayTurnos, setSelectedDayTurnos] = useState({ date: null, turnos: [] });
@@ -21,6 +27,25 @@ export function Turnos() {
   const [reschedulingTurno, setReschedulingTurno] = useState(null);
   const [newFechaHora, setNewFechaHora] = useState("");
   const [isSlowLoading, setIsSlowLoading] = useState(false);
+  const [recordatoriosTurnos, setRecordatoriosTurnos] = useState([]);
+  const [processedReminderIds, setProcessedReminderIds] = useState(() => {
+    try {
+      const key = getTodayKey();
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const key = getTodayKey();
+      localStorage.setItem(key, JSON.stringify(processedReminderIds));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [processedReminderIds]);
 
   useEffect(() => {
     let timer;
@@ -59,21 +84,72 @@ export function Turnos() {
   const fetchTurnos = async () => {
     setLoading(true);
     try {
-      const [turnosData, clientesData, vehiculosData] = await Promise.all([
+      const [turnosData, clientesData, vehiculosData, mananaData] = await Promise.all([
         api.getTurnos(),
         api.getClientes(),
-        api.getVehiculos()
+        api.getVehiculos(),
+        fetch(`${API_URL}/turnos/manana`).then(r => r.ok ? r.json() : []).catch(() => [])
       ]);
       turnosData.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
       setTurnos(turnosData);
       setClientes(clientesData);
       setVehiculos(vehiculosData);
+      setRecordatoriosTurnos(mananaData);
     } catch (error) {
       console.error("Error al cargar turnos:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSendConfirmationWhatsApp = (turno, c, v) => {
+    const cliente = c || clientes.find(cli => cli.id === v?.cliente_id) || turno.vehiculo?.propietario;
+    const vehiculo = v || vehiculos.find(veh => veh.patente === turno.vehiculo_patente) || turno.vehiculo;
+    if (!cliente?.telefono) {
+      alert("El cliente no tiene un teléfono registrado para enviar WhatsApp.");
+      return;
+    }
+
+    const mensaje = generateTurnoConfirmationMessage({
+      cliente,
+      vehiculo,
+      fechaHora: turno.fecha_hora,
+      motivo: turno.motivo
+    });
+
+    const waLink = buildWhatsAppLink(cliente.telefono, mensaje);
+    window.open(waLink, "_blank");
+  };
+
+  const handleSendReminderWhatsApp = (turno) => {
+    const vehiculo = turno.vehiculo || vehiculos.find(veh => veh.patente === turno.vehiculo_patente);
+    const cliente = turno.vehiculo?.propietario || (vehiculo ? clientes.find(cli => cli.id === vehiculo.cliente_id) : null);
+    if (!cliente?.telefono) {
+      alert("El cliente no tiene un teléfono registrado para enviar WhatsApp.");
+      return;
+    }
+
+    const mensaje = generateTurnoReminderMessage({
+      cliente,
+      vehiculo,
+      fechaHora: turno.fecha_hora,
+      motivo: turno.motivo
+    });
+
+    const waLink = buildWhatsAppLink(cliente.telefono, mensaje);
+    window.open(waLink, "_blank");
+    handleObviarReminder(turno.id);
+  };
+
+  const handleObviarReminder = (id) => {
+    setProcessedReminderIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
+  const handleRestaurarReminders = () => {
+    setProcessedReminderIds([]);
+  };
+
+  const pendingReminders = recordatoriosTurnos.filter(t => !processedReminderIds.includes(t.id));
 
   const updateEstado = async (id, nuevoEstado) => {
     try {
@@ -145,6 +221,17 @@ export function Turnos() {
             >
               <CalendarIcon size={16} /> Mes
             </button>
+            <button 
+              onClick={() => setViewMode('recordatorios')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${viewMode === 'recordatorios' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <MessageCircle size={16} /> Recordatorios
+              {pendingReminders.length > 0 && (
+                <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                  {pendingReminders.length}
+                </span>
+              )}
+            </button>
           </div>
 
           <button 
@@ -197,27 +284,43 @@ export function Turnos() {
                 </h3>
               </div>
             ) : (
-              turnos.filter(t => listFilter === 'Todos' || t.estado === 'Pendiente').map((turno) => (
-              <div key={turno.id} onClick={() => setSelectedTurnoDetail(turno)} className={`group flex flex-col p-6 rounded-2xl border bg-card/80 backdrop-blur-sm shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer ${getStatusColor(turno.estado)}`}>
-                <div className="flex justify-between items-start mb-3">
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-background/60 dark:bg-background/40 backdrop-blur-md border border-current/20 shadow-sm">
-                    {turno.estado}
-                  </span>
-                  
-                  {turno.estado === 'Pendiente' && (
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cumplido'); }} className="p-1.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all duration-200 hover:scale-110" title="Marcar como cumplido">
-                        <Check size={16} />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); startRescheduling(turno); }} className="p-1.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-all duration-200 hover:scale-110" title="Reprogramar turno">
-                        <CalendarDays size={16} />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cancelado'); }} className="p-1.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 hover:scale-110" title="Cancelar turno">
-                        <X size={16} />
-                      </button>
+              turnos.filter(t => listFilter === 'Todos' || t.estado === 'Pendiente').map((turno) => {
+                const v = vehiculos.find(veh => veh.patente === turno.vehiculo_patente) || turno.vehiculo;
+                const c = v ? (clientes.find(cli => cli.id === v.cliente_id) || v.propietario) : null;
+
+                return (
+                  <div key={turno.id} onClick={() => setSelectedTurnoDetail(turno)} className={`group flex flex-col p-6 rounded-2xl border bg-card/80 backdrop-blur-sm shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer ${getStatusColor(turno.estado)}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-background/60 dark:bg-background/40 backdrop-blur-md border border-current/20 shadow-sm">
+                        {turno.estado}
+                      </span>
+                      
+                      {turno.estado === 'Pendiente' && (
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          {c?.telefono && (
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                handleSendConfirmationWhatsApp(turno, c, v);
+                              }} 
+                              className="p-1.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all duration-200 hover:scale-110" 
+                              title="Avisar por WhatsApp"
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cumplido'); }} className="p-1.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all duration-200 hover:scale-110" title="Marcar como cumplido">
+                            <Check size={16} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); startRescheduling(turno); }} className="p-1.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-all duration-200 hover:scale-110" title="Reprogramar turno">
+                            <CalendarDays size={16} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); updateEstado(turno.id, 'Cancelado'); }} className="p-1.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 hover:scale-110" title="Cancelar turno">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
                 
                 <h3 className="text-xl font-black text-foreground mb-4 leading-tight">{turno.motivo}</h3>
                 
@@ -239,11 +342,12 @@ export function Turnos() {
                   </div>
                 </div>
               </div>
-            ))
-          )}
+            );
+          })
+        )}
         </div>
         </div>
-      ) : (
+      ) : viewMode === 'calendar' ? (
         <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
           {/* Calendar Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
@@ -300,6 +404,155 @@ export function Turnos() {
               );
             })}
           </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/60 border border-border/80 p-5 rounded-2xl backdrop-blur-sm">
+            <div>
+              <h2 className="text-xl font-black text-foreground flex items-center gap-2">
+                <MessageCircle size={22} className="text-emerald-500" />
+                Recordatorio de Turnos (Mañana / Lunes)
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Envía un aviso personalizado por WhatsApp con un solo clic a los clientes con turno próximo.
+              </p>
+            </div>
+            {processedReminderIds.length > 0 && (
+              <button
+                onClick={handleRestaurarReminders}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors self-start sm:self-auto"
+                title="Restaurar recordatorios procesados hoy"
+              >
+                <Undo2 size={14} />
+                Recomenzar Lista ({processedReminderIds.length})
+              </button>
+            )}
+          </div>
+
+          {pendingReminders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-border rounded-3xl bg-card/20 backdrop-blur-sm max-w-xl mx-auto my-6">
+              <div className="p-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full mb-3">
+                <CalendarDays size={36} />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-1">
+                {recordatoriosTurnos.length === 0 ? "No hay turnos para recordar" : "¡Todos los recordatorios enviados!"}
+              </h3>
+              <p className="text-muted-foreground text-sm max-w-sm">
+                {recordatoriosTurnos.length === 0
+                  ? "No se registran ingresos programados para mañana ni para el próximo lunes."
+                  : "Ya procesaste o enviaste el recordatorio a todos los clientes correspondientes."}
+              </p>
+              {processedReminderIds.length > 0 && (
+                <button
+                  onClick={handleRestaurarReminders}
+                  className="mt-5 flex items-center gap-1.5 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl text-sm transition-colors"
+                >
+                  <Undo2 size={16} />
+                  Restaurar lista de recordatorios
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {pendingReminders.map((turno) => {
+                const vehiculo = turno.vehiculo || vehiculos.find(veh => veh.patente === turno.vehiculo_patente);
+                const cliente = turno.vehiculo?.propietario || (vehiculo ? clientes.find(cli => cli.id === vehiculo.cliente_id) : null);
+                const dt = new Date(turno.fecha_hora);
+                const horaTurno = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+                const diaSemanaNombre = diasSemana[dt.getDay()];
+                const fechaCorta = dt.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
+                const today = new Date();
+                const tomorrow = new Date();
+                tomorrow.setDate(today.getDate() + 1);
+                const esManana = dt.getDate() === tomorrow.getDate() && 
+                                 dt.getMonth() === tomorrow.getMonth() && 
+                                 dt.getFullYear() === tomorrow.getFullYear();
+
+                return (
+                  <div
+                    key={turno.id}
+                    className="flex flex-col justify-between p-6 rounded-2xl border border-border/80 bg-card shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group"
+                  >
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${
+                      esManana 
+                        ? "bg-gradient-to-r from-amber-500/80 to-amber-600/40" 
+                        : "bg-gradient-to-r from-indigo-500/80 to-indigo-600/40"
+                    }`} />
+
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold shadow-sm border ${
+                          esManana 
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" 
+                            : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                        }`}>
+                          <Clock size={13} />
+                          <span>{esManana ? `Mañana (${horaTurno} hs)` : `${diaSemanaNombre} ${fechaCorta} (${horaTurno} hs)`}</span>
+                        </div>
+                        <span className="text-[10px] uppercase font-black tracking-wider text-muted-foreground/80">
+                          Pendiente
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-black text-foreground mb-4 leading-tight group-hover:text-primary transition-colors">
+                        {turno.motivo}
+                      </h3>
+
+                      <div className="space-y-3 border-t border-border/60 pt-3.5 mb-5 text-sm">
+                        <div className="flex items-center gap-2.5">
+                          <User size={15} className="text-primary opacity-80" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-foreground truncate">
+                              {cliente ? `${cliente.nombre} ${cliente.apellido || ""}` : "Dueño no encontrado"}
+                            </p>
+                            {cliente?.telefono && (
+                              <p className="text-xs text-muted-foreground font-mono">
+                                Tel: {cliente.telefono}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                          <Car size={15} className="text-primary opacity-80" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-foreground truncate">
+                              {vehiculo ? `${vehiculo.marca} ${vehiculo.modelo}` : "Vehículo"}
+                            </p>
+                            <span className="inline-block bg-muted px-1.5 py-0.5 rounded text-[11px] font-mono font-bold mt-0.5 border border-border">
+                              {turno.vehiculo_patente}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-auto pt-2">
+                      <button
+                        onClick={() => handleSendReminderWhatsApp(turno)}
+                        disabled={!cliente?.telefono}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 text-sm"
+                      >
+                        <MessageCircle size={18} />
+                        Recordar por WhatsApp
+                        <ExternalLink size={12} className="opacity-70 ml-0.5" />
+                      </button>
+
+                      <button
+                        onClick={() => handleObviarReminder(turno.id)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 border border-border hover:bg-muted text-muted-foreground hover:text-foreground font-semibold rounded-xl text-xs transition-colors"
+                      >
+                        <EyeOff size={14} />
+                        Obviar recordatorio
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -412,7 +665,15 @@ export function Turnos() {
                 </div>
               </div>
               
-              <div className="flex gap-2 justify-end mt-6">
+              <div className="flex flex-wrap gap-2 justify-end mt-6">
+                {c?.telefono && (
+                  <button 
+                    onClick={() => handleSendConfirmationWhatsApp(selectedTurnoDetail, c, v)} 
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-all duration-200 flex items-center gap-2 shadow-sm"
+                  >
+                    <MessageCircle size={18}/> Avisar por WhatsApp
+                  </button>
+                )}
                 {selectedTurnoDetail.estado === 'Pendiente' && (
                   <>
                     <button onClick={() => { updateEstado(selectedTurnoDetail.id, 'Cancelado'); setSelectedTurnoDetail(null); }} className="px-4 py-2 bg-rose-500/10 text-rose-600 font-bold rounded-lg hover:bg-rose-500 hover:text-white transition-colors flex items-center gap-2"><X size={18}/> Cancelar Turno</button>

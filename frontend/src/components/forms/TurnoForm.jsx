@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { InputWithHistory } from "../InputWithHistory";
 import { api, translateError } from "../../lib/api";
-import { Search, User, Car, Plus, ArrowLeft } from "lucide-react";
+import { Search, User, Car, Plus, ArrowLeft, MessageCircle, ExternalLink, CheckCircle2 } from "lucide-react";
 import { ClienteForm } from "./ClienteForm";
 import { VehiculoForm } from "./VehiculoForm";
 import { CustomDateTimePicker } from "../CustomDateTimePicker";
+import { buildWhatsAppLink, generateTurnoConfirmationMessage } from "../../lib/utils";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -30,6 +31,7 @@ export function TurnoForm({ onSuccess, onCancel, initialCliente = null, initialV
   });
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [error, setError] = useState(null);
+  const [agendadoTurno, setAgendadoTurno] = useState(null);
 
   useEffect(() => {
     // Fetch all for search (ideally this should be a backend search endpoint, 
@@ -101,8 +103,13 @@ export function TurnoForm({ onSuccess, onCancel, initialCliente = null, initialV
         vehiculo_patente: selectedVehiculo.patente,
         fecha_hora: turnoData.fecha_hora
       };
-      await api.createTurno(dataToSubmit);
-      onSuccess();
+      const created = await api.createTurno(dataToSubmit);
+      setAgendadoTurno({
+        ...created,
+        cliente: selectedCliente,
+        vehiculo: selectedVehiculo
+      });
+      setStep('success');
     } catch (err) {
       setError(translateError(err.message || err.toString()));
     } finally {
@@ -344,6 +351,101 @@ export function TurnoForm({ onSuccess, onCancel, initialCliente = null, initialV
           </button>
         </div>
       </form>
+    );
+  }
+
+  if (step === 'success') {
+    const cliente = agendadoTurno?.cliente || selectedCliente;
+    const vehiculo = agendadoTurno?.vehiculo || selectedVehiculo;
+    const fechaHora = agendadoTurno?.fecha_hora || turnoData.fecha_hora;
+    const motivo = agendadoTurno?.motivo || turnoData.motivo;
+    
+    const waLink = cliente?.telefono
+      ? buildWhatsAppLink(
+          cliente.telefono,
+          generateTurnoConfirmationMessage({ cliente, vehiculo, fechaHora, motivo })
+        )
+      : null;
+
+    return (
+      <div className="space-y-6 text-center py-2 animate-fade-in">
+        <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+          <CheckCircle2 size={36} />
+        </div>
+
+        <div>
+          <h3 className="text-2xl font-black text-foreground">¡Turno Agendado con Éxito!</h3>
+          <p className="text-muted-foreground text-sm mt-1">
+            El turno quedó registrado. Podés avisarle al cliente por WhatsApp ahora mismo.
+          </p>
+        </div>
+
+        {/* Resumen del turno */}
+        <div className="bg-card border border-border rounded-2xl p-5 text-left space-y-3 shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Fecha y Hora</span>
+            <span className="text-sm font-black text-primary">
+              {new Date(fechaHora).toLocaleDateString([], { weekday: 'short', day: '2-digit', month: '2-digit' })} - {new Date(fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-xs text-muted-foreground block font-medium">Cliente</span>
+              <span className="font-bold text-foreground">
+                {cliente?.nombre} {cliente?.apellido}
+              </span>
+              {cliente?.telefono && (
+                <span className="text-xs text-muted-foreground block font-mono">
+                  Tel: {cliente.telefono}
+                </span>
+              )}
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground block font-medium">Vehículo</span>
+              <span className="font-bold text-foreground">
+                {vehiculo?.marca} {vehiculo?.modelo}
+              </span>
+              <span className="text-xs font-mono font-bold bg-muted px-1.5 py-0.5 rounded border border-border inline-block mt-0.5">
+                {vehiculo?.patente}
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border/60">
+            <span className="text-xs text-muted-foreground block font-medium">Motivo</span>
+            <span className="text-sm font-medium text-foreground">{motivo}</span>
+          </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="space-y-3 pt-2">
+          {waLink ? (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(16,185,129,0.3)] hover:shadow-[0_6px_22px_rgba(16,185,129,0.45)] hover:-translate-y-0.5 transition-all text-base"
+            >
+              <MessageCircle size={20} />
+              Avisar por WhatsApp al Cliente
+              <ExternalLink size={14} className="opacity-70" />
+            </a>
+          ) : (
+            <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border">
+              El cliente no posee un teléfono registrado para enviar WhatsApp.
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onSuccess}
+            className="w-full py-2.5 px-4 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl text-sm transition-colors"
+          >
+            Finalizar y Ver Turnos
+          </button>
+        </div>
+      </div>
     );
   }
 

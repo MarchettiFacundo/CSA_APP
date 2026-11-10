@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MessageCircle, Clock, Car, User, Calendar, AlertCircle, EyeOff, ExternalLink, RefreshCw, Undo2 } from "lucide-react";
+import { buildWhatsAppLink, generateTurnoReminderMessage } from "../lib/utils";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -54,31 +55,19 @@ export function Recordatorios() {
   };
 
   const handleSendWhatsApp = (turno) => {
-    const cliente = turno.vehiculo.propietario;
+    const cliente = turno.vehiculo?.propietario;
     const vehiculo = turno.vehiculo;
-    const fechaHora = new Date(turno.fecha_hora);
     
-    const hora = fechaHora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const fecha = fechaHora.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    if (!cliente?.telefono) return;
 
-    const nombreCliente = `${cliente.nombre} ${cliente.apellido || ""}`.trim();
-    const vehiculoInfo = `${vehiculo.marca} ${vehiculo.modelo}`;
+    const mensaje = generateTurnoReminderMessage({
+      cliente,
+      vehiculo,
+      fechaHora: turno.fecha_hora,
+      motivo: turno.motivo
+    });
 
-    // Mensaje súper profesional y personalizado
-    const mensaje = `Hola ${nombreCliente}! Te recordamos que mañana ${fecha} tenés un turno programado para tu ${vehiculoInfo} (Patente: ${vehiculo.patente}) a las ${hora} hs en el taller CSA. Por favor, confírmanos tu asistencia. ¡Te esperamos!`;
-
-    // Formatear teléfono (remover no-dígitos)
-    let cleanPhone = cliente.telefono.replace(/\D/g, "");
-    
-    // Auto-formateo básico para números de Argentina si tienen longitud estándar de celular
-    if (cleanPhone.length === 10) {
-      cleanPhone = "549" + cleanPhone;
-    } else if (cleanPhone.length === 11 && cleanPhone.startsWith("15")) {
-      // Eliminar el 15 si es local de 11 dígitos con prefijo local
-      cleanPhone = "549" + cleanPhone.substring(2);
-    }
-
-    const waLink = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(mensaje)}`;
+    const waLink = buildWhatsAppLink(cliente.telefono, mensaje);
     window.open(waLink, "_blank");
 
     // Marcar como procesado automáticamente al recordar
@@ -108,7 +97,7 @@ export function Recordatorios() {
             Recordatorio de Turnos
           </h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">
-            Notificá a los clientes que tienen turno programado para mañana o descartá los recordatorios procesados.
+            Notificá por WhatsApp a los clientes con turno para mañana (o para el lunes si es viernes).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -143,12 +132,12 @@ export function Recordatorios() {
             <Calendar size={36} />
           </div>
           <h3 className="text-2xl font-bold text-foreground mb-2">
-            {turnos.length === 0 ? "No hay turnos para mañana" : "Lista completada"}
+            {turnos.length === 0 ? "No hay turnos para recordar" : "Lista completada"}
           </h3>
           <p className="text-muted-foreground text-sm max-w-sm">
             {turnos.length === 0 
-              ? "No hay ingresos programados pendientes para el día de mañana." 
-              : "Has procesado (recordado u obviado) todos los recordatorios para los turnos de mañana."}
+              ? "No hay ingresos programados pendientes para mañana ni para el próximo lunes." 
+              : "Has procesado (recordado u obviado) todos los recordatorios para mañana y el lunes."}
           </p>
           {processedIds.length > 0 && (
             <button
@@ -165,7 +154,18 @@ export function Recordatorios() {
           {turnosVisibles.map((turno) => {
             const cliente = turno.vehiculo?.propietario;
             const vehiculo = turno.vehiculo;
-            const horaTurno = new Date(turno.fecha_hora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dt = new Date(turno.fecha_hora);
+            const horaTurno = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            const diaSemanaNombre = diasSemana[dt.getDay()];
+            const fechaCorta = dt.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(today.getDate() + 1);
+            const esManana = dt.getDate() === tomorrow.getDate() && 
+                             dt.getMonth() === tomorrow.getMonth() && 
+                             dt.getFullYear() === tomorrow.getFullYear();
             
             return (
               <div
@@ -173,14 +173,22 @@ export function Recordatorios() {
                 className="group relative flex flex-col justify-between p-6 rounded-2xl border border-border/60 bg-card/85 hover:bg-card backdrop-blur-md shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
                 {/* Indicador superior estético */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/80 to-amber-600/40" />
+                <div className={`absolute top-0 left-0 right-0 h-1 ${
+                  esManana 
+                    ? "bg-gradient-to-r from-amber-500/80 to-amber-600/40" 
+                    : "bg-gradient-to-r from-indigo-500/80 to-indigo-600/40"
+                }`} />
 
                 <div>
                   {/* Encabezado de Tarjeta (Hora) */}
                   <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold shadow-sm">
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold shadow-sm border ${
+                      esManana 
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" 
+                        : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                    }`}>
                       <Clock size={13} />
-                      <span>{horaTurno} hs</span>
+                      <span>{esManana ? `Mañana (${horaTurno} hs)` : `${diaSemanaNombre} ${fechaCorta} (${horaTurno} hs)`}</span>
                     </div>
                     <span className="text-[10px] uppercase font-black tracking-wider text-muted-foreground/80">
                       Pendiente

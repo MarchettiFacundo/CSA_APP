@@ -127,15 +127,30 @@ def read_turnos(skip: int = 0, limit: Optional[int] = None, db: Session = Depend
 
 @router.get("/turnos/manana", response_model=List[schemas.TurnoDetalladoResponse])
 def read_turnos_manana(db: Session = Depends(get_db)):
-    tomorrow = date.today() + timedelta(days=1)
-    tomorrow_start = datetime.datetime.combine(tomorrow, datetime.time.min)
-    tomorrow_end = datetime.datetime.combine(tomorrow, datetime.time.max)
+    today = date.today()
+    weekday = today.weekday()  # 0: Lunes ... 4: Viernes, 5: Sábado, 6: Domingo
+    
+    # Si es viernes (4), se recuerdan los turnos de mañana (sábado) y los del próximo lunes (+3 días)
+    if weekday == 4:
+        start_date = today + timedelta(days=1)
+        end_date = today + timedelta(days=3)
+    # Si es sábado (5), se recuerdan turnos del domingo y del lunes (+2 días)
+    elif weekday == 5:
+        start_date = today + timedelta(days=1)
+        end_date = today + timedelta(days=2)
+    # En cualquier otro día (domingo a jueves), solo los de mañana
+    else:
+        start_date = today + timedelta(days=1)
+        end_date = today + timedelta(days=1)
+        
+    start_dt = datetime.datetime.combine(start_date, datetime.time.min)
+    end_dt = datetime.datetime.combine(end_date, datetime.time.max)
     
     turnos = db.query(models.Turno)\
         .options(joinedload(models.Turno.vehiculo).joinedload(models.Vehiculo.propietario))\
         .filter(
-            models.Turno.fecha_hora >= tomorrow_start,
-            models.Turno.fecha_hora <= tomorrow_end,
+            models.Turno.fecha_hora >= start_dt,
+            models.Turno.fecha_hora <= end_dt,
             models.Turno.estado == "Pendiente"
         )\
         .order_by(models.Turno.fecha_hora.asc())\
